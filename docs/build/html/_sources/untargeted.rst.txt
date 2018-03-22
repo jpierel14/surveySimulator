@@ -1,9 +1,9 @@
-**********************
-Simulating a Survey
-**********************
+*******************************
+Simulating an Untargeted Survey
+*******************************
 
-Untargeted Survey
-=================
+Creating an Untargeted Survey
+=============================
 
 For an untargeted survey search, use the following example:
 
