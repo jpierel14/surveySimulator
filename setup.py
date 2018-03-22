@@ -8,7 +8,7 @@ def recursive_glob(basedir, pattern):
             matches.append(os.path.join(root, filename))
     return matches
 
-PACKAGENAME='snsedextend'
+PACKAGENAME='surveySim'
 # Add the project-global data
 pkgdatadir = os.path.join(PACKAGENAME, 'data')
 data_files = []
