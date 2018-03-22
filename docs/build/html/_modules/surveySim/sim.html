@@ -1,0 +1,583 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>surveySim.sim &#8212; surveySim 0.0.6 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.0.6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">surveySim 0.0.6 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for surveySim.sim</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">math</span><span class="o">,</span><span class="nn">os</span><span class="o">,</span><span class="nn">sncosmo</span><span class="o">,</span><span class="nn">sys</span><span class="o">,</span><span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">astropy.constants</span> <span class="k">as</span> <span class="nn">constants</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">astropy.io</span> <span class="k">import</span> <span class="n">ascii</span>
+<span class="kn">from</span> <span class="nn">astropy.table</span> <span class="k">import</span> <span class="n">Table</span>
+<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="k">import</span> <span class="n">interp1d</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">astropy</span> <span class="k">import</span> <span class="n">units</span> <span class="k">as</span> <span class="n">u</span>
+<span class="kn">from</span> <span class="nn">astropy.cosmology</span> <span class="k">import</span> <span class="n">WMAP9</span> <span class="k">as</span> <span class="n">cosmo</span>
+
+<span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">)</span>
+<span class="n">__all__</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;survey&#39;</span><span class="p">,</span><span class="s1">&#39;load_example_data&#39;</span><span class="p">]</span>
+<span class="fm">__dir__</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="survey"><a class="viewcode-back" href="../../surveySim.html#surveySim.survey">[docs]</a><span class="k">class</span> <span class="nc">survey</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	A survey simulator class that allows you to find SN yields.</span>
+
+<span class="sd">	:param name: The name of your survey</span>
+<span class="sd">	:type name: str</span>
+<span class="sd">	:param snTypes: A list of the supernova Types you want to find yields for </span>
+<span class="sd">	:type snTypes: list (of str)</span>
+<span class="sd">	:param magLimits: A list, corresponding to filters, of limiting magnitudes </span>
+<span class="sd">	:type magLimits: list (of float) </span>
+<span class="sd">	:param mu: Magnification parameter </span>
+<span class="sd">	:type mu: float </span>
+<span class="sd">	:param zmin: Minimum Redshift </span>
+<span class="sd">	:type zmin: float </span>
+<span class="sd">	:param zmax: Maximum Redshift </span>
+<span class="sd">	:type zmax: float </span>
+<span class="sd">	:param dz: Redshift stepsize </span>
+<span class="sd">	:type dz: float </span>
+<span class="sd">	:param area: Survey area (assumed square degrees) </span>
+<span class="sd">	:type area: float </span>
+<span class="sd">	:param filters: List of filters corresponding to limiting magnitudes list </span>
+<span class="sd">	:type filters: list (of str)</span>
+<span class="sd">	:param cadence: Cadence of survey observations (assumed days)</span>
+<span class="sd">	:type cadence: float </span>
+<span class="sd">	:param surveyLength: Length of survey (assumed years) </span>
+<span class="sd">	:type surveyLength: float </span>
+<span class="sd">	:param galaxies: For a targeted survey, table containing galaxy data.</span>
+<span class="sd">	:type galaxies: astropy Table</span>
+<span class="sd">	:returns: None</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;mySurvey&#39;</span><span class="p">,</span><span class="n">snTypes</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Ia&#39;</span><span class="p">,</span><span class="s1">&#39;Ib&#39;</span><span class="p">,</span><span class="s1">&#39;Ic&#39;</span><span class="p">,</span><span class="s1">&#39;IIP&#39;</span><span class="p">],</span><span class="n">zmin</span><span class="o">=.</span><span class="mi">1</span><span class="p">,</span><span class="n">zmax</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span><span class="n">dz</span><span class="o">=.</span><span class="mi">02</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">=</span><span class="n">name</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">snTypes</span><span class="o">=</span><span class="n">snTypes</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">magLimits</span><span class="o">=</span><span class="kc">None</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="o">=</span><span class="kc">None</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">zmin</span><span class="o">=</span><span class="n">zmin</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">zmax</span><span class="o">=</span><span class="n">zmax</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">dz</span><span class="o">=</span><span class="n">dz</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">area</span><span class="o">=</span><span class="kc">None</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="o">=</span><span class="kc">None</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">cadence</span><span class="o">=</span><span class="kc">None</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">surveyLength</span><span class="o">=</span><span class="kc">None</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">yields</span><span class="o">=</span><span class="nb">dict</span><span class="p">([])</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="o">=</span><span class="kc">None</span>
+
+	<span class="k">def</span> <span class="nf">_normalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">unTargeted</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+		<span class="k">if</span> <span class="n">unTargeted</span><span class="p">:</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">unit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">area</span><span class="o">.</span><span class="n">unit</span>
+			<span class="k">except</span><span class="p">:</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;You did not add an astropy unit to your area, assuming square degrees.&#39;</span><span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">area</span><span class="o">*=</span><span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="o">**</span><span class="mi">2</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">degArea</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">area</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">area</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">area</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">sr</span><span class="p">)</span> <span class="c1">#change to steradians</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">:</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No Magnification information found, assuming mu=1&#39;</span><span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="o">=</span><span class="mi">1</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="o">.</span><span class="n">colnames</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">col</span> <span class="o">!=</span> <span class="n">col</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="o">.</span><span class="n">rename_column</span><span class="p">(</span><span class="n">col</span><span class="p">,</span><span class="n">col</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+			<span class="k">if</span> <span class="s1">&#39;redshift&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="o">.</span><span class="n">colnames</span><span class="p">:</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="o">.</span><span class="n">rename_column</span><span class="p">(</span><span class="s1">&#39;redshift&#39;</span><span class="p">,</span><span class="s1">&#39;z&#39;</span><span class="p">)</span>
+			<span class="k">elif</span> <span class="s1">&#39;z&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="o">.</span><span class="n">colnames</span><span class="p">:</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Could not find redshift in your column names, rename to &quot;z&quot; if it exists&#39;</span><span class="p">)</span>
+				<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+			<span class="k">if</span> <span class="s1">&#39;sfr&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="o">.</span><span class="n">colnames</span><span class="p">:</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;SFR not found, change column name to &quot;SFR&quot; if it exists&#39;</span><span class="p">)</span>
+				<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">:</span>
+				<span class="k">if</span> <span class="s1">&#39;mu&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="o">.</span><span class="n">colnames</span><span class="p">:</span>
+					<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No Magnification information found, assuming mu=1&#39;</span><span class="p">)</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="o">=</span><span class="mi">1</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;mu&#39;</span><span class="p">])</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="s1">&#39;z&#39;</span><span class="p">)</span>
+
+		<span class="k">try</span><span class="p">:</span>
+			<span class="n">unit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cadence</span><span class="o">.</span><span class="n">unit</span>
+		<span class="k">except</span><span class="p">:</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;You did not add an astropy unit to your cadence, assuming days.&#39;</span><span class="p">)</span>
+			<span class="n">cadence</span><span class="o">*=</span><span class="n">u</span><span class="o">.</span><span class="n">day</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">cadence</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cadence</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">day</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+		<span class="k">try</span><span class="p">:</span>
+			<span class="n">unit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">surveyLength</span><span class="o">.</span><span class="n">unit</span>
+		<span class="k">except</span><span class="p">:</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;You did not add an astropy unit to your survey length, assuming years.&#39;</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">surveyLength</span><span class="o">*=</span><span class="n">u</span><span class="o">.</span><span class="n">year</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">surveyLength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">surveyLength</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">year</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">,(</span><span class="nb">list</span><span class="p">,</span><span class="nb">tuple</span><span class="p">)):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">]</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">magLimits</span><span class="p">,(</span><span class="nb">list</span><span class="p">,</span><span class="nb">tuple</span><span class="p">)):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">magLimits</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">magLimits</span><span class="p">]</span>
+		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">magLimits</span><span class="p">):</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Your list of bands and list of limiting magnitudes need to be the same length.&#39;</span><span class="p">)</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">([</span><span class="n">x</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;paritel&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">]):</span>
+			<span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;J&#39;</span><span class="p">,</span><span class="s1">&#39;H&#39;</span><span class="p">,</span><span class="s1">&#39;Ks&#39;</span><span class="p">]:</span>
+				<span class="n">wave</span><span class="p">,</span><span class="n">trans</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;surveySim&#39;</span><span class="p">,</span><span class="s1">&#39;data&#39;</span><span class="p">,</span><span class="s1">&#39;bands&#39;</span><span class="p">,</span><span class="nb">str</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">+</span><span class="s1">&#39;Band&#39;</span><span class="p">,</span><span class="s1">&#39;paritel&#39;</span><span class="o">+</span><span class="n">f</span><span class="o">+</span><span class="s1">&#39;.dat&#39;</span><span class="p">),</span><span class="n">unpack</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+				<span class="n">wave</span><span class="o">*=</span><span class="mi">10000</span>
+				<span class="n">sncosmo</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">sncosmo</span><span class="o">.</span><span class="n">Bandpass</span><span class="p">(</span><span class="n">wave</span><span class="p">,</span><span class="n">trans</span><span class="p">,</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;paritel::&#39;</span><span class="o">+</span><span class="n">f</span><span class="o">.</span><span class="n">lower</span><span class="p">()),</span><span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+		
+
+	
+	<span class="c1">#these three functions allow you to access the curveDict via &quot;dot&quot; notation</span>
+	<span class="fm">__setattr__</span> <span class="o">=</span> <span class="nb">dict</span><span class="o">.</span><span class="fm">__setitem__</span>
+	<span class="fm">__delattr__</span> <span class="o">=</span> <span class="nb">dict</span><span class="o">.</span><span class="fm">__delitem__</span>
+	<span class="fm">__getattr__</span> <span class="o">=</span> <span class="nb">dict</span><span class="o">.</span><span class="fm">__getitem__</span>
+	<span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Replaces the printing function for this class</span>
+
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">yields</span><span class="p">:</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Survey Name:&#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+			<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">surveyLength</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Length: &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">surveyLength</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39; Year&#39;</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Length: &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">surveyLength</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39; Years&#39;</span><span class="p">)</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Cadence: &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cadence</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39; Days&#39;</span><span class="p">)</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">:</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Area: &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">degArea</span><span class="o">.</span><span class="n">value</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39; Square Degrees&#39;</span><span class="p">)</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Redshift Range: &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">zmin</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;--&gt;&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">zmax</span><span class="p">))</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Number of Galaxies: &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">)))</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Redshift Range: &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]),</span><span class="mi">2</span><span class="p">))</span><span class="o">+</span><span class="s1">&#39;--&gt;&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]),</span><span class="mi">2</span><span class="p">)))</span>
+			<span class="k">for</span> <span class="n">band</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">yields</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;-------------------&#39;</span><span class="p">)</span>
+				<span class="n">snYield</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">yields</span><span class="p">[</span><span class="n">band</span><span class="p">]</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Filter=&#39;</span><span class="o">+</span><span class="n">band</span><span class="o">+</span><span class="s1">&#39;, Limiting Magnitude=&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">magLimits</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="o">==</span><span class="n">band</span><span class="p">]))</span>
+				<span class="n">allSne_lower</span><span class="o">=</span><span class="p">[]</span>
+				<span class="n">allSne_upper</span><span class="o">=</span><span class="p">[]</span>
+				<span class="n">allCC_lower</span><span class="o">=</span><span class="p">[]</span>
+				<span class="n">allCC_upper</span><span class="o">=</span><span class="p">[]</span>
+				<span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">snYield</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+					<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Upper Bound &#39;</span><span class="o">+</span><span class="n">key</span><span class="o">+</span><span class="s1">&#39;:&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">snYield</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;upper&#39;</span><span class="p">]),</span><span class="mi">2</span><span class="p">)))</span>
+					<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Lower Bound &#39;</span><span class="o">+</span><span class="n">key</span><span class="o">+</span><span class="s1">&#39;:&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">snYield</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;lower&#39;</span><span class="p">]),</span><span class="mi">2</span><span class="p">)))</span>
+					<span class="n">allSne_lower</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">snYield</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;lower&#39;</span><span class="p">]))</span>
+					<span class="n">allSne_upper</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">snYield</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;upper&#39;</span><span class="p">]))</span>
+					<span class="k">if</span> <span class="n">key</span><span class="o">!=</span><span class="s1">&#39;Ia&#39;</span><span class="p">:</span>
+						<span class="n">allCC_upper</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">snYield</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;upper&#39;</span><span class="p">]))</span>
+						<span class="n">allCC_lower</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">snYield</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;lower&#39;</span><span class="p">]))</span>
+				<span class="nb">print</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Total Ia Upper Bound:&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">snYield</span><span class="p">[</span><span class="s1">&#39;Ia&#39;</span><span class="p">][</span><span class="s1">&#39;upper&#39;</span><span class="p">]),</span><span class="mi">2</span><span class="p">)))</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Total Ia Lower Bound:&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">snYield</span><span class="p">[</span><span class="s1">&#39;Ia&#39;</span><span class="p">][</span><span class="s1">&#39;lower&#39;</span><span class="p">]),</span><span class="mi">2</span><span class="p">)))</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Total CC Upper Bound:&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">allCC_upper</span><span class="p">),</span><span class="mi">2</span><span class="p">)))</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Total CC Lower Bound:&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">allCC_lower</span><span class="p">),</span><span class="mi">2</span><span class="p">)))</span>
+				<span class="nb">print</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Total Lower Bound:&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">allSne_lower</span><span class="p">),</span><span class="mi">2</span><span class="p">)))</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;		Total Upper Bound:&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">allSne_upper</span><span class="p">),</span><span class="mi">2</span><span class="p">)))</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No yields calculated.&#39;</span><span class="p">)</span>
+		<span class="k">return</span><span class="p">(</span><span class="s1">&#39;-------------------&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="survey.unTargetedSurvey"><a class="viewcode-back" href="../../surveySim.html#surveySim.survey.unTargetedSurvey">[docs]</a>	<span class="k">def</span> <span class="nf">unTargetedSurvey</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">absolutes</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;Ia&#39;</span><span class="p">:</span><span class="o">-</span><span class="mf">19.25</span><span class="p">,</span><span class="s1">&#39;Ib&#39;</span><span class="p">:</span><span class="o">-</span><span class="mf">17.45</span><span class="p">,</span><span class="s1">&#39;Ic&#39;</span><span class="p">:</span><span class="o">-</span><span class="mf">17.66</span><span class="p">,</span><span class="s1">&#39;IIP&#39;</span><span class="p">:</span><span class="o">-</span><span class="mf">16.75</span><span class="p">},</span><span class="n">Ia_av</span><span class="o">=.</span><span class="mi">3</span><span class="p">,</span><span class="n">CC_av</span><span class="o">=.</span><span class="mi">9</span><span class="p">,</span><span class="n">zpsys</span><span class="o">=</span><span class="s1">&#39;ab&#39;</span><span class="p">):</span> <span class="c1">#t_obs in years</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Run an untargeted survey from a survey object.</span>
+
+<span class="sd">		:param absolutes: Dictionary containing absolute magnitudes for each SN class.</span>
+<span class="sd">		:type absolutes: dict</span>
+<span class="sd">		:param Ia_av: A_v for Ia&#39;s (Rodney et al.)</span>
+<span class="sd">		:type Ia_av: float</span>
+<span class="sd">		:param CC_av: A_v for CC&#39;s (Rodney et al.)</span>
+<span class="sd">		:type CC_av: float</span>
+<span class="sd">		:returns: None</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_normalize</span><span class="p">(</span><span class="n">unTargeted</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+		<span class="n">redshifts</span><span class="p">,</span><span class="n">N_CC_upper</span><span class="p">,</span><span class="n">N_CC_lower</span><span class="p">,</span><span class="n">N_Ia_upper</span><span class="p">,</span><span class="n">N_Ia_lower</span><span class="o">=</span><span class="n">_getSNexploding</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">surveyLength</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">area</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">dz</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">zmin</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">zmax</span><span class="p">)</span>
+		<span class="c1">#filterDict=dict([])</span>
+		<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">)):</span>
+			<span class="n">_SNfractions</span><span class="o">=</span><span class="n">_SNfraction</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">snTypes</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">magLimits</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">redshifts</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">cadence</span><span class="p">,</span><span class="n">absolutes</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">,</span><span class="n">Ia_av</span><span class="p">,</span><span class="n">CC_av</span><span class="p">,</span><span class="n">zpsys</span><span class="p">)</span>
+			<span class="n">snYields</span><span class="o">=</span><span class="nb">dict</span><span class="p">([])</span>
+			<span class="k">for</span> <span class="n">snClass</span> <span class="ow">in</span> <span class="n">_SNfractions</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+				<span class="k">if</span> <span class="n">snClass</span><span class="o">==</span><span class="s1">&#39;Ia&#39;</span><span class="p">:</span>
+					<span class="n">snYields</span><span class="p">[</span><span class="n">snClass</span><span class="p">]</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;upper&#39;</span><span class="p">:</span><span class="n">_SNfractions</span><span class="p">[</span><span class="n">snClass</span><span class="p">]</span><span class="o">*</span><span class="n">N_Ia_upper</span><span class="p">,</span><span class="s1">&#39;lower&#39;</span><span class="p">:</span><span class="n">_SNfractions</span><span class="p">[</span><span class="n">snClass</span><span class="p">]</span><span class="o">*</span><span class="n">N_Ia_lower</span><span class="p">}</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">snYields</span><span class="p">[</span><span class="n">snClass</span><span class="p">]</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;upper&#39;</span><span class="p">:</span><span class="n">_SNfractions</span><span class="p">[</span><span class="n">snClass</span><span class="p">]</span><span class="o">*</span><span class="n">N_CC_upper</span><span class="p">,</span><span class="s1">&#39;lower&#39;</span><span class="p">:</span><span class="n">_SNfractions</span><span class="p">[</span><span class="n">snClass</span><span class="p">]</span><span class="o">*</span><span class="n">N_CC_lower</span><span class="p">}</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">yields</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span><span class="o">=</span><span class="n">snYields</span></div>
+
+<div class="viewcode-block" id="survey.targetedSurvey"><a class="viewcode-back" href="../../surveySim.html#surveySim.survey.targetedSurvey">[docs]</a>	<span class="k">def</span> <span class="nf">targetedSurvey</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">absolutes</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;Ia&#39;</span><span class="p">:</span><span class="o">-</span><span class="mf">19.25</span><span class="p">,</span><span class="s1">&#39;Ib&#39;</span><span class="p">:</span><span class="o">-</span><span class="mf">17.45</span><span class="p">,</span><span class="s1">&#39;Ic&#39;</span><span class="p">:</span><span class="o">-</span><span class="mf">17.66</span><span class="p">,</span><span class="s1">&#39;IIP&#39;</span><span class="p">:</span><span class="o">-</span><span class="mf">16.75</span><span class="p">},</span><span class="n">Ia_av</span><span class="o">=.</span><span class="mi">3</span><span class="p">,</span><span class="n">CC_av</span><span class="o">=.</span><span class="mi">9</span><span class="p">,</span><span class="n">zpsys</span><span class="o">=</span><span class="s1">&#39;ab&#39;</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Run a targeted survey from a survey object.</span>
+
+<span class="sd">		:param absolutes: Dictionary containing absolute magnitudes for each SN class.</span>
+<span class="sd">		:type absolutes: dict</span>
+<span class="sd">		:param Ia_av: A_v for Ia&#39;s (Rodney et al.)</span>
+<span class="sd">		:type Ia_av: float</span>
+<span class="sd">		:param CC_av: A_v for CC&#39;s (Rodney et al.)</span>
+<span class="sd">		:type CC_av: float</span>
+<span class="sd">		:returns: None</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_normalize</span><span class="p">(</span><span class="n">unTargeted</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+		<span class="n">kcc_lower</span><span class="o">=</span><span class="mi">5</span>
+		<span class="n">kcc_upper</span><span class="o">=</span><span class="mi">10</span>
+		<span class="c1">#table=ascii.read(filename)</span>
+		<span class="n">thetas</span><span class="o">=</span><span class="p">[]</span>
+		<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">:</span>
+			<span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]</span><span class="o">&lt;=</span><span class="mf">1.25</span><span class="p">:</span>
+				<span class="n">thetas</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">_getTheta1</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">])))</span>
+			<span class="k">elif</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]</span><span class="o">&lt;=</span><span class="mf">1.7</span><span class="p">:</span>
+				<span class="n">thetas</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">_getTheta2</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">])))</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">thetas</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="o">.</span><span class="mi">05</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">-.</span><span class="mi">05</span><span class="p">)))</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;theta&#39;</span><span class="p">]</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">thetas</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;SNR_CC_upper&#39;</span><span class="p">]</span><span class="o">=</span><span class="n">kcc_upper</span><span class="o">*</span><span class="mf">1E-3</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;sfr&#39;</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;SNR_CC_lower&#39;</span><span class="p">]</span><span class="o">=</span><span class="n">kcc_lower</span><span class="o">*</span><span class="mf">1E-3</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;sfr&#39;</span><span class="p">]</span>
+		<span class="k">if</span> <span class="s1">&#39;mass&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="o">.</span><span class="n">colnames</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;SNR_Ia_lower&#39;</span><span class="p">]</span><span class="o">=</span><span class="mf">1.05E-10</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;mass&#39;</span><span class="p">]</span><span class="o">**.</span><span class="mi">68</span><span class="o">+</span><span class="n">kcc_lower</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;theta&#39;</span><span class="p">]</span><span class="o">*</span><span class="mf">1E-3</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;sfr&#39;</span><span class="p">]</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;SNR_Ia_upper&#39;</span><span class="p">]</span><span class="o">=</span><span class="mf">1.05E-10</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;mass&#39;</span><span class="p">]</span><span class="o">**.</span><span class="mi">68</span><span class="o">+</span><span class="n">kcc_upper</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;theta&#39;</span><span class="p">]</span><span class="o">*</span><span class="mf">1E-3</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;sfr&#39;</span><span class="p">]</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Did not find galaxy mass column, change name to &quot;mass&quot; if it exists, otherwise using scale factor.&#39;</span><span class="p">)</span>
+			<span class="c1">#print(1.035*self.galaxies[&#39;theta&#39;][0]*1E-3*self.galaxies[&#39;sfr&#39;][0],kcc_upper)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;SNR_Ia_lower&#39;</span><span class="p">]</span><span class="o">=</span><span class="mf">1.035</span><span class="o">*</span><span class="n">kcc_lower</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;theta&#39;</span><span class="p">]</span><span class="o">*</span><span class="mf">1E-3</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;sfr&#39;</span><span class="p">]</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;SNR_Ia_upper&#39;</span><span class="p">]</span><span class="o">=</span><span class="mf">1.035</span><span class="o">*</span><span class="n">kcc_upper</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;theta&#39;</span><span class="p">]</span><span class="o">*</span><span class="mf">1E-3</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;sfr&#39;</span><span class="p">]</span>
+			
+		<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">)):</span>
+			<span class="n">_SNfractions</span><span class="o">=</span><span class="n">_SNfraction</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">snTypes</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">magLimits</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">cadence</span><span class="p">,</span><span class="n">absolutes</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">,</span><span class="n">Ia_av</span><span class="p">,</span><span class="n">CC_av</span><span class="p">,</span><span class="n">zpsys</span><span class="p">)</span>
+			<span class="n">snYields</span><span class="o">=</span><span class="nb">dict</span><span class="p">([])</span>
+			<span class="k">for</span> <span class="n">snClass</span> <span class="ow">in</span> <span class="n">_SNfractions</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+				<span class="k">if</span> <span class="n">snClass</span><span class="o">==</span><span class="s1">&#39;Ia&#39;</span><span class="p">:</span>
+					<span class="n">snYields</span><span class="p">[</span><span class="n">snClass</span><span class="p">]</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;upper&#39;</span><span class="p">:</span><span class="n">_SNfractions</span><span class="p">[</span><span class="n">snClass</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;SNR_Ia_upper&#39;</span><span class="p">],</span><span class="s1">&#39;lower&#39;</span><span class="p">:</span><span class="n">_SNfractions</span><span class="p">[</span><span class="n">snClass</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;SNR_Ia_lower&#39;</span><span class="p">]}</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">snYields</span><span class="p">[</span><span class="n">snClass</span><span class="p">]</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;upper&#39;</span><span class="p">:</span><span class="n">_SNfractions</span><span class="p">[</span><span class="n">snClass</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;SNR_CC_upper&#39;</span><span class="p">],</span><span class="s1">&#39;lower&#39;</span><span class="p">:</span><span class="n">_SNfractions</span><span class="p">[</span><span class="n">snClass</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;SNR_Ia_lower&#39;</span><span class="p">]}</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">yields</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span><span class="o">=</span><span class="n">snYields</span></div>
+	
+
+<div class="viewcode-block" id="survey.plotHist"><a class="viewcode-back" href="../../surveySim.html#surveySim.survey.plotHist">[docs]</a>	<span class="k">def</span> <span class="nf">plotHist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">band</span><span class="p">,</span><span class="n">snClass</span><span class="p">,</span><span class="n">bound</span><span class="o">=</span><span class="s1">&#39;Lower&#39;</span><span class="p">,</span><span class="n">facecolor</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">,</span><span class="n">showPlot</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">savePlot</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Plot a histogram of SN yields results.</span>
+
+<span class="sd">		:param band: Filter you would like to plot.</span>
+<span class="sd">		:type band: str</span>
+<span class="sd">		:param snClass: The SN class you would like to plot.</span>
+<span class="sd">		:type snClass: str</span>
+<span class="sd">		:param bound: Plot the lower or upper bound (default lower)</span>
+<span class="sd">		:type bound: str</span>
+<span class="sd">		:param showPlot: Show plot?</span>
+<span class="sd">		:type showPlot: Boolean</span>
+<span class="sd">		:param savePlot: Save plot?</span>
+<span class="sd">		:type savePlot: Boolean</span>
+<span class="sd">		:returns: None</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="n">fig</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+		<span class="n">ax</span><span class="o">=</span><span class="n">fig</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">:</span>
+			<span class="n">plt</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">galaxies</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">],</span><span class="n">height</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">yields</span><span class="p">[</span><span class="n">band</span><span class="p">][</span><span class="n">snClass</span><span class="p">][</span><span class="n">bound</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">surveyLength</span><span class="p">,</span><span class="n">facecolor</span><span class="o">=</span><span class="n">facecolor</span><span class="p">)</span>
+			<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+				<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Targeted Survey &#39;</span><span class="o">+</span><span class="n">bound</span><span class="o">+</span><span class="s1">&#39; Limit SN Yield--Band=&#39;</span><span class="o">+</span><span class="n">band</span><span class="o">+</span><span class="s1">&#39;--Mag Limit=&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">magLimits</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="o">==</span><span class="n">band</span><span class="p">])</span><span class="o">+</span><span class="s1">&#39;--Type &#39;</span><span class="o">+</span><span class="n">snClass</span><span class="o">+</span><span class="s1">&#39;--Average mu=&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="o">.</span><span class="n">mean</span><span class="p">(),</span><span class="mi">1</span><span class="p">)),</span><span class="n">size</span><span class="o">=</span><span class="mi">14</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Targeted Survey &#39;</span><span class="o">+</span><span class="n">bound</span><span class="o">+</span><span class="s1">&#39; Limit SN Yield--Band=&#39;</span><span class="o">+</span><span class="n">band</span><span class="o">+</span><span class="s1">&#39;--Mag Limit=&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">magLimits</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="o">==</span><span class="n">band</span><span class="p">])</span><span class="o">+</span><span class="s1">&#39;--Type &#39;</span><span class="o">+</span><span class="n">snClass</span><span class="o">+</span><span class="s1">&#39;--mu=&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">),</span><span class="n">size</span><span class="o">=</span><span class="mi">14</span><span class="p">)</span>
+			<span class="n">tType</span><span class="o">=</span><span class="s1">&#39;target&#39;</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">plt</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">zmin</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">zmax</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">dz</span><span class="p">),</span><span class="n">height</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">yields</span><span class="p">[</span><span class="n">band</span><span class="p">][</span><span class="n">snClass</span><span class="p">][</span><span class="n">bound</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">surveyLength</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dz</span><span class="p">,</span><span class="n">facecolor</span><span class="o">=</span><span class="n">facecolor</span><span class="p">)</span>
+			<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Untargeted Survey &#39;</span><span class="o">+</span><span class="n">bound</span><span class="o">+</span><span class="s1">&#39; Limit SN Yield--Band=&#39;</span><span class="o">+</span><span class="n">band</span><span class="o">+</span><span class="s1">&#39;--Mag Limit=&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">magLimits</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="o">==</span><span class="n">band</span><span class="p">])</span><span class="o">+</span><span class="s1">&#39;--Type &#39;</span><span class="o">+</span><span class="n">snClass</span><span class="o">+</span><span class="s1">&#39;--mu=&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">),</span><span class="n">size</span><span class="o">=</span><span class="mi">14</span><span class="p">)</span>
+			<span class="n">tType</span><span class="o">=</span><span class="s1">&#39;unTarget&#39;</span>
+		<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$Redshift$&#39;</span><span class="p">,</span><span class="n">size</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+		<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;$Number \ of \ SN (yr^{-1})$&#39;</span><span class="p">,</span><span class="n">size</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+		
+		<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">savePlot</span><span class="p">:</span>
+			<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tType</span><span class="o">+</span><span class="n">bound</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">+</span><span class="s1">&#39;_Type&#39;</span><span class="o">+</span><span class="n">snClass</span><span class="o">+</span><span class="s1">&#39;.pdf&#39;</span><span class="p">),</span><span class="nb">format</span><span class="o">=</span><span class="s1">&#39;png&#39;</span><span class="p">,</span><span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">showPlot</span><span class="p">:</span>
+			<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+		<span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div></div>
+	
+		
+
+<span class="k">def</span> <span class="nf">load_example_data</span><span class="p">():</span>
+	<span class="k">return</span><span class="p">(</span><span class="n">ascii</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="fm">__dir__</span><span class="p">,</span><span class="s1">&#39;data&#39;</span><span class="p">,</span><span class="s1">&#39;examples&#39;</span><span class="p">,</span><span class="s1">&#39;galaxies.dat&#39;</span><span class="p">)))</span>
+
+<span class="k">def</span> <span class="nf">_ccm_extinction</span><span class="p">(</span><span class="n">wave</span><span class="p">,</span> <span class="n">ebv</span><span class="p">,</span> <span class="n">r_v</span><span class="o">=</span><span class="mf">3.1</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	(Private)</span>
+<span class="sd">	Heler function for dereddening.</span>
+
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">scalar</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">iterable</span><span class="p">(</span><span class="n">wave</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">scalar</span><span class="p">:</span>
+		<span class="n">wave</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">wave</span><span class="p">],</span> <span class="nb">float</span><span class="p">)</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="n">wave</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">wave</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span>
+
+	<span class="n">x</span> <span class="o">=</span> <span class="mf">10000.0</span><span class="o">/</span><span class="n">wave</span>
+	<span class="n">npts</span> <span class="o">=</span> <span class="n">wave</span><span class="o">.</span><span class="n">size</span>
+	<span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">npts</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span>
+	<span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">npts</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span>
+
+	<span class="c1">#Infrared</span>
+	<span class="n">good</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span> <span class="p">(</span><span class="n">x</span> <span class="o">&gt;</span> <span class="mf">0.3</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;</span> <span class="mf">1.1</span><span class="p">)</span> <span class="p">)</span>
+	<span class="n">a</span><span class="p">[</span><span class="n">good</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.574</span> <span class="o">*</span> <span class="n">x</span><span class="p">[</span><span class="n">good</span><span class="p">]</span><span class="o">**</span><span class="p">(</span><span class="mf">1.61</span><span class="p">)</span>
+	<span class="n">b</span><span class="p">[</span><span class="n">good</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.527</span> <span class="o">*</span> <span class="n">x</span><span class="p">[</span><span class="n">good</span><span class="p">]</span><span class="o">**</span><span class="p">(</span><span class="mf">1.61</span><span class="p">)</span>
+
+	<span class="c1"># Optical &amp; Near IR</span>
+	<span class="n">good</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span> <span class="p">(</span><span class="n">x</span>  <span class="o">&gt;=</span> <span class="mf">1.1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;</span> <span class="mf">3.3</span><span class="p">)</span> <span class="p">)</span>
+	<span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">good</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1.82</span>
+
+	<span class="n">c1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="mf">1.0</span> <span class="p">,</span> <span class="mf">0.104</span><span class="p">,</span>   <span class="o">-</span><span class="mf">0.609</span><span class="p">,</span>    <span class="mf">0.701</span><span class="p">,</span>  <span class="mf">1.137</span><span class="p">,</span>
+					<span class="o">-</span><span class="mf">1.718</span><span class="p">,</span>   <span class="o">-</span><span class="mf">0.827</span><span class="p">,</span>    <span class="mf">1.647</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.505</span> <span class="p">])</span>
+	<span class="n">c2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="mf">0.0</span><span class="p">,</span>  <span class="mf">1.952</span><span class="p">,</span>    <span class="mf">2.908</span><span class="p">,</span>   <span class="o">-</span><span class="mf">3.989</span><span class="p">,</span> <span class="o">-</span><span class="mf">7.985</span><span class="p">,</span>
+					<span class="mf">11.102</span><span class="p">,</span>    <span class="mf">5.491</span><span class="p">,</span>  <span class="o">-</span><span class="mf">10.805</span><span class="p">,</span>  <span class="mf">3.347</span> <span class="p">]</span> <span class="p">)</span>
+
+	<span class="n">a</span><span class="p">[</span><span class="n">good</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyval</span><span class="p">(</span><span class="n">c1</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">y</span><span class="p">)</span>
+	<span class="n">b</span><span class="p">[</span><span class="n">good</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyval</span><span class="p">(</span><span class="n">c2</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">y</span><span class="p">)</span>
+
+	<span class="c1"># Mid-UV</span>
+	<span class="n">good</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span> <span class="p">(</span><span class="n">x</span> <span class="o">&gt;=</span> <span class="mf">3.3</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">)</span> <span class="p">)</span>
+	<span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">good</span><span class="p">]</span>
+	<span class="n">F_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">good</span><span class="p">),</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">F_b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">good</span><span class="p">),</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">good1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span> <span class="n">y</span> <span class="o">&gt;</span> <span class="mf">5.9</span> <span class="p">)</span>
+
+	<span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">good1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+		<span class="n">y1</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">good1</span><span class="p">]</span> <span class="o">-</span> <span class="mf">5.9</span>
+		<span class="n">F_a</span><span class="p">[</span> <span class="n">good1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.04473</span> <span class="o">*</span> <span class="n">y1</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mf">0.009779</span> <span class="o">*</span> <span class="n">y1</span><span class="o">**</span><span class="mi">3</span>
+		<span class="n">F_b</span><span class="p">[</span> <span class="n">good1</span><span class="p">]</span> <span class="o">=</span>   <span class="mf">0.2130</span> <span class="o">*</span> <span class="n">y1</span><span class="o">**</span><span class="mi">2</span>  <span class="o">+</span>  <span class="mf">0.1207</span> <span class="o">*</span> <span class="n">y1</span><span class="o">**</span><span class="mi">3</span>
+
+	<span class="n">a</span><span class="p">[</span><span class="n">good</span><span class="p">]</span> <span class="o">=</span>  <span class="mf">1.752</span> <span class="o">-</span> <span class="mf">0.316</span><span class="o">*</span><span class="n">y</span> <span class="o">-</span> <span class="p">(</span><span class="mf">0.104</span> <span class="o">/</span> <span class="p">(</span> <span class="p">(</span><span class="n">y</span><span class="o">-</span><span class="mf">4.67</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mf">0.341</span> <span class="p">))</span> <span class="o">+</span> <span class="n">F_a</span>
+	<span class="n">b</span><span class="p">[</span><span class="n">good</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">3.090</span> <span class="o">+</span> <span class="mf">1.825</span><span class="o">*</span><span class="n">y</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.206</span> <span class="o">/</span> <span class="p">(</span> <span class="p">(</span><span class="n">y</span><span class="o">-</span><span class="mf">4.62</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mf">0.263</span> <span class="p">))</span> <span class="o">+</span> <span class="n">F_b</span>
+
+	<span class="c1"># Far-UV</span>
+	<span class="n">good</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span> <span class="p">(</span><span class="n">x</span> <span class="o">&gt;=</span> <span class="mi">8</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;=</span> <span class="mi">11</span><span class="p">)</span> <span class="p">)</span>
+	<span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">good</span><span class="p">]</span> <span class="o">-</span> <span class="mf">8.0</span>
+	<span class="n">c1</span> <span class="o">=</span> <span class="p">[</span> <span class="o">-</span><span class="mf">1.073</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.628</span><span class="p">,</span>  <span class="mf">0.137</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.070</span> <span class="p">]</span>
+	<span class="n">c2</span> <span class="o">=</span> <span class="p">[</span> <span class="mf">13.670</span><span class="p">,</span>  <span class="mf">4.257</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.420</span><span class="p">,</span>  <span class="mf">0.374</span> <span class="p">]</span>
+	<span class="n">a</span><span class="p">[</span><span class="n">good</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyval</span><span class="p">(</span><span class="n">c1</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">y</span><span class="p">)</span>
+	<span class="n">b</span><span class="p">[</span><span class="n">good</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyval</span><span class="p">(</span><span class="n">c2</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">y</span><span class="p">)</span>
+
+	<span class="c1"># Defining the Extinction at each wavelength</span>
+	<span class="n">a_v</span> <span class="o">=</span> <span class="n">r_v</span> <span class="o">*</span> <span class="n">ebv</span>
+	<span class="n">a_lambda</span> <span class="o">=</span> <span class="n">a_v</span> <span class="o">*</span> <span class="p">(</span><span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="o">/</span><span class="n">r_v</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">scalar</span><span class="p">:</span>
+		<span class="n">a_lambda</span> <span class="o">=</span> <span class="n">a_lambda</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+	<span class="k">return</span> <span class="n">a_lambda</span>
+
+<span class="k">def</span> <span class="nf">_getSFR</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">z0</span><span class="o">=</span><span class="mf">1.243</span><span class="p">,</span><span class="n">A</span><span class="o">=-.</span><span class="mi">997</span><span class="p">,</span><span class="n">B</span><span class="o">=.</span><span class="mi">241</span><span class="p">,</span><span class="n">C</span><span class="o">=.</span><span class="mi">18</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	(Private)</span>
+<span class="sd">	Heler function for getting CSFR.</span>
+
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="k">return</span><span class="p">(</span><span class="n">C</span><span class="o">/</span><span class="p">(</span><span class="mi">10</span><span class="o">**</span><span class="p">(</span><span class="n">A</span><span class="o">*</span><span class="p">(</span><span class="n">z</span><span class="o">-</span><span class="n">z0</span><span class="p">))</span><span class="o">+</span><span class="mi">10</span><span class="o">**</span><span class="p">(</span><span class="n">B</span><span class="o">*</span><span class="p">(</span><span class="n">z</span><span class="o">-</span><span class="n">z0</span><span class="p">))))</span>
+
+<span class="k">def</span> <span class="nf">_getTheta1</span><span class="p">(</span><span class="n">z</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	(Private)</span>
+<span class="sd">	Heler function for SNR_Ia/SNR_CC.</span>
+
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">func</span><span class="o">=</span><span class="n">interp1d</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="o">.</span><span class="mi">25</span><span class="p">,</span><span class="o">.</span><span class="mi">5</span><span class="p">,</span><span class="o">.</span><span class="mi">75</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mf">1.25</span><span class="p">],[</span><span class="o">.</span><span class="mi">25</span><span class="p">,</span><span class="o">.</span><span class="mi">17</span><span class="p">,</span><span class="o">.</span><span class="mi">16</span><span class="p">,</span><span class="o">.</span><span class="mi">155</span><span class="p">,</span><span class="o">.</span><span class="mi">15</span><span class="p">,</span><span class="o">.</span><span class="mi">15</span><span class="p">])</span>
+	<span class="k">return</span><span class="p">(</span><span class="n">func</span><span class="p">(</span><span class="n">z</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">func</span><span class="p">(</span><span class="n">z</span><span class="p">)))</span>
+
+<span class="k">def</span> <span class="nf">_getTheta2</span><span class="p">(</span><span class="n">z</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	(Private)</span>
+<span class="sd">	Heler function for SNR_Ia/SNR_CC.</span>
+
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">func</span><span class="o">=</span><span class="n">interp1d</span><span class="p">([</span><span class="mf">1.25</span><span class="p">,</span><span class="mf">1.7</span><span class="p">],[</span><span class="o">.</span><span class="mi">15</span><span class="p">,</span><span class="o">.</span><span class="mi">08</span><span class="p">])</span>
+	<span class="k">return</span><span class="p">(</span><span class="n">func</span><span class="p">(</span><span class="n">z</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">func</span><span class="p">(</span><span class="n">z</span><span class="p">)))</span>
+
+<span class="k">def</span> <span class="nf">_getSNR</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">kcc_lower</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span><span class="n">kcc_upper</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	(Private)</span>
+<span class="sd">	Heler function for SNRs.</span>
+
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">CSFR</span><span class="o">=</span><span class="n">_getSFR</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+	<span class="n">cc_lower</span><span class="o">=</span><span class="n">kcc_lower</span><span class="o">*</span><span class="mf">1E-3</span><span class="o">*</span><span class="n">CSFR</span> <span class="c1">#Mpc^-3</span>
+	<span class="n">cc_upper</span><span class="o">=</span><span class="n">kcc_upper</span><span class="o">*</span><span class="mf">1E-3</span><span class="o">*</span><span class="n">CSFR</span>
+	<span class="k">if</span> <span class="n">z</span><span class="o">&lt;=</span><span class="mf">1.25</span><span class="p">:</span>
+		<span class="n">theta</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">_getTheta1</span><span class="p">(</span><span class="n">z</span><span class="p">))</span>
+	<span class="k">elif</span> <span class="n">z</span><span class="o">&lt;=</span><span class="mf">1.7</span><span class="p">:</span>
+		<span class="n">theta</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">_getTheta2</span><span class="p">(</span><span class="n">z</span><span class="p">))</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="n">theta</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="o">.</span><span class="mi">05</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">-.</span><span class="mi">05</span><span class="p">))</span>
+	
+	<span class="n">ia_lower</span><span class="o">=</span><span class="mf">1.035</span><span class="o">*</span><span class="n">kcc_lower</span><span class="o">*</span><span class="n">theta</span><span class="o">*</span><span class="mf">1E-3</span><span class="o">*</span><span class="n">CSFR</span>
+	<span class="n">ia_upper</span><span class="o">=</span><span class="mf">1.035</span><span class="o">*</span><span class="n">kcc_upper</span><span class="o">*</span><span class="n">theta</span><span class="o">*</span><span class="mf">1E-3</span><span class="o">*</span><span class="n">CSFR</span>
+	<span class="k">return</span><span class="p">(</span><span class="n">ia_lower</span><span class="p">,</span><span class="n">ia_upper</span><span class="p">,</span><span class="n">cc_lower</span><span class="p">,</span><span class="n">cc_upper</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_getSNexploding</span><span class="p">(</span><span class="n">t_obs</span><span class="p">,</span><span class="n">area</span><span class="p">,</span><span class="n">dz</span><span class="p">,</span><span class="n">zmin</span><span class="p">,</span><span class="n">zmax</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	(Private)</span>
+<span class="sd">	Heler function for N_exp.</span>
+
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">redshifts</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">zmin</span><span class="p">,</span><span class="n">zmax</span><span class="p">,</span><span class="n">dz</span><span class="p">)</span>
+	<span class="n">N_CC_upper</span><span class="o">=</span><span class="p">[]</span>
+	<span class="n">N_CC_lower</span><span class="o">=</span><span class="p">[]</span>
+	<span class="n">N_Ia_upper</span><span class="o">=</span><span class="p">[]</span>
+	<span class="n">N_Ia_lower</span><span class="o">=</span><span class="p">[]</span>
+	<span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">zmin</span><span class="p">,</span><span class="n">zmax</span><span class="p">,</span><span class="n">dz</span><span class="p">):</span>
+		<span class="n">dV</span><span class="o">=</span><span class="n">cosmo</span><span class="o">.</span><span class="n">comoving_volume</span><span class="p">(</span><span class="n">z</span><span class="o">+</span><span class="n">dz</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="o">-</span><span class="n">cosmo</span><span class="o">.</span><span class="n">comoving_volume</span><span class="p">(</span><span class="n">z</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="c1">#megaparsecs</span>
+		<span class="n">surveyV</span><span class="o">=</span><span class="p">(</span><span class="n">area</span><span class="o">/</span><span class="p">(</span><span class="mi">4</span><span class="o">*</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">u</span><span class="o">.</span><span class="n">sr</span><span class="p">))</span><span class="o">*</span><span class="n">dV</span>
+		<span class="n">ia_lower</span><span class="p">,</span><span class="n">ia_upper</span><span class="p">,</span><span class="n">cc_lower</span><span class="p">,</span><span class="n">cc_upper</span><span class="o">=</span><span class="n">_getSNR</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+		<span class="n">N_CC_upper</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cc_upper</span><span class="o">*</span><span class="n">surveyV</span><span class="o">*</span><span class="p">(</span><span class="n">t_obs</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">z</span><span class="p">)))</span>
+		<span class="n">N_CC_lower</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cc_lower</span><span class="o">*</span><span class="n">surveyV</span><span class="o">*</span><span class="p">(</span><span class="n">t_obs</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">z</span><span class="p">)))</span>
+		<span class="n">N_Ia_upper</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ia_upper</span><span class="o">*</span><span class="n">surveyV</span><span class="o">*</span><span class="p">(</span><span class="n">t_obs</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">z</span><span class="p">)))</span>
+		<span class="n">N_Ia_lower</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ia_lower</span><span class="o">*</span><span class="n">surveyV</span><span class="o">*</span><span class="p">(</span><span class="n">t_obs</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">z</span><span class="p">)))</span>
+	<span class="k">return</span><span class="p">(</span><span class="n">redshifts</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">N_CC_upper</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">N_CC_lower</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">N_Ia_upper</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">N_Ia_lower</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">_snMax</span><span class="p">(</span><span class="n">model</span><span class="p">,</span><span class="n">band</span><span class="p">,</span><span class="n">zpsys</span><span class="p">,</span><span class="n">tStep</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	(Private)</span>
+<span class="sd">	Heler function that returns peak of lightcurve in current band.</span>
+
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">tgrid</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">mintime</span><span class="p">(),</span><span class="mi">0</span><span class="p">,</span><span class="n">tStep</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">model</span><span class="o">.</span><span class="n">maxtime</span><span class="p">(),</span><span class="n">tStep</span><span class="p">))</span>
+	<span class="n">mags</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">bandmag</span><span class="p">(</span><span class="n">band</span><span class="p">,</span><span class="n">zpsys</span><span class="p">,</span><span class="n">tgrid</span><span class="p">)</span>
+	<span class="n">tgrid</span><span class="o">=</span><span class="n">tgrid</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">mags</span><span class="p">)]</span>
+	<span class="n">mags</span><span class="o">=</span><span class="n">mags</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">mags</span><span class="p">)]</span>
+	<span class="k">return</span><span class="p">(</span><span class="n">tgrid</span><span class="p">[</span><span class="n">mags</span><span class="o">==</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">mags</span><span class="p">)][</span><span class="mi">0</span><span class="p">])</span>
+
+
+<span class="k">def</span> <span class="nf">_SNfraction</span><span class="p">(</span><span class="n">classes</span><span class="p">,</span><span class="n">band</span><span class="p">,</span><span class="n">magLimit</span><span class="p">,</span><span class="n">redshifts</span><span class="p">,</span><span class="n">cadence</span><span class="p">,</span><span class="n">absolutes</span><span class="p">,</span><span class="n">mu</span><span class="p">,</span><span class="n">Ia_av</span><span class="p">,</span><span class="n">CC_av</span><span class="p">,</span><span class="n">zpsys</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	(Private)</span>
+<span class="sd">	Heler function for N_frac</span>
+
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">mod</span><span class="p">,</span><span class="n">types</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="fm">__dir__</span><span class="p">,</span><span class="s1">&#39;data&#39;</span><span class="p">,</span><span class="s1">&#39;models.ref&#39;</span><span class="p">),</span><span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;str&#39;</span><span class="p">,</span><span class="n">unpack</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+	<span class="n">modDict</span><span class="o">=</span><span class="p">{</span><span class="n">mod</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span><span class="n">types</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mod</span><span class="p">))}</span>
+	<span class="n">sne</span><span class="o">=</span><span class="nb">dict</span><span class="p">([])</span>
+	<span class="k">for</span> <span class="n">sn</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Ib&#39;</span><span class="p">,</span><span class="s1">&#39;Ic&#39;</span><span class="p">,</span><span class="s1">&#39;IIP&#39;</span><span class="p">]:</span>
+		<span class="n">mods</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">sncosmo</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">_SOURCES</span><span class="o">.</span><span class="n">_loaders</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">modDict</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="ow">and</span> <span class="n">modDict</span><span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">==</span><span class="n">sn</span><span class="p">]</span> <span class="c1">#need sn to be list of models of that type, woops</span>
+		<span class="n">mods</span> <span class="o">=</span> <span class="p">{</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,(</span><span class="nb">tuple</span><span class="p">,</span><span class="nb">list</span><span class="p">))</span> <span class="k">else</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">mods</span><span class="p">}</span>
+		<span class="n">sne</span><span class="p">[</span><span class="n">sn</span><span class="p">]</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">mods</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+	<span class="n">sne</span><span class="p">[</span><span class="s1">&#39;Ia&#39;</span><span class="p">]</span><span class="o">=</span><span class="s1">&#39;salt2&#39;</span>
+	<span class="n">resultsDict</span><span class="o">=</span><span class="nb">dict</span><span class="p">([])</span>
+	<span class="k">for</span> <span class="n">snClass</span> <span class="ow">in</span> <span class="n">classes</span><span class="p">:</span>
+		<span class="k">if</span> <span class="n">snClass</span><span class="o">==</span><span class="s1">&#39;Ia&#39;</span><span class="p">:</span>
+			<span class="n">magLimit</span><span class="o">-=</span><span class="n">_ccm_extinction</span><span class="p">(</span><span class="n">sncosmo</span><span class="o">.</span><span class="n">get_bandpass</span><span class="p">(</span><span class="n">band</span><span class="p">)</span><span class="o">.</span><span class="n">wave_eff</span><span class="p">,</span><span class="n">Ia_av</span><span class="o">/</span><span class="mf">3.1</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">magLimit</span><span class="o">-=</span><span class="n">_ccm_extinction</span><span class="p">(</span><span class="n">sncosmo</span><span class="o">.</span><span class="n">get_bandpass</span><span class="p">(</span><span class="n">band</span><span class="p">)</span><span class="o">.</span><span class="n">wave_eff</span><span class="p">,</span><span class="n">CC_av</span><span class="o">/</span><span class="mf">3.1</span><span class="p">)</span>
+		<span class="n">absolute</span><span class="o">=</span><span class="n">absolutes</span><span class="p">[</span><span class="n">snClass</span><span class="p">]</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+			<span class="n">magLimits</span><span class="o">=</span><span class="p">[</span><span class="n">magLimit</span><span class="o">+</span><span class="mf">2.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">redshifts</span><span class="p">))]</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">magLimits</span><span class="o">=</span><span class="p">[</span><span class="n">magLimit</span><span class="o">+</span><span class="mf">2.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">mu</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">redshifts</span><span class="p">))]</span>
+		<span class="n">fractions</span><span class="o">=</span><span class="p">[]</span>
+		<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">redshifts</span><span class="p">)):</span>
+			<span class="n">model</span><span class="o">=</span><span class="n">sncosmo</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">sne</span><span class="p">[</span><span class="n">snClass</span><span class="p">])</span>
+			<span class="n">model</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">z</span><span class="o">=</span><span class="n">redshifts</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+			<span class="n">model</span><span class="o">.</span><span class="n">set_source_peakabsmag</span><span class="p">(</span><span class="n">absolute</span><span class="p">,</span><span class="s1">&#39;bessellb&#39;</span><span class="p">,</span><span class="n">zpsys</span><span class="p">)</span>
+			<span class="c1">#model.set(t0=-_snMax(model,band,zpsys))</span>
+			<span class="c1">#if snClass==&#39;Ia&#39;:</span>
+			<span class="c1">#	sncosmo.plot_lc(model=model,bands=[&#39;sdss::i&#39;])</span>
+			<span class="c1">#	plt.show()</span>
+			<span class="c1">#	sys.exit()</span>
+			<span class="n">t0</span><span class="o">=</span><span class="n">_snMax</span><span class="p">(</span><span class="n">model</span><span class="p">,</span><span class="n">band</span><span class="p">,</span><span class="n">zpsys</span><span class="p">)</span>
+			<span class="n">mags</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">bandmag</span><span class="p">(</span><span class="n">band</span><span class="p">,</span><span class="n">zpsys</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">t0</span><span class="o">-</span><span class="p">(</span><span class="n">cadence</span><span class="o">+</span><span class="mi">1</span><span class="p">),</span><span class="n">t0</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">t0</span><span class="p">,</span><span class="n">t0</span><span class="o">+</span><span class="n">cadence</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)))</span>
+			<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">mags</span><span class="p">[</span><span class="n">mags</span><span class="o">&lt;=</span><span class="n">magLimits</span><span class="p">[</span><span class="n">i</span><span class="p">]])</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+				<span class="n">fractions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">mags</span><span class="p">[</span><span class="n">mags</span><span class="o">&lt;=</span><span class="n">magLimits</span><span class="p">[</span><span class="n">i</span><span class="p">]])</span><span class="o">&lt;</span><span class="n">cadence</span><span class="p">:</span>
+					<span class="n">fractions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mags</span><span class="p">[</span><span class="n">mags</span><span class="o">&lt;=</span><span class="n">magLimits</span><span class="p">[</span><span class="n">i</span><span class="p">]])</span><span class="o">/</span><span class="n">cadence</span><span class="p">))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">fractions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+		<span class="n">resultsDict</span><span class="p">[</span><span class="n">snClass</span><span class="p">]</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fractions</span><span class="p">)</span>
+
+	<span class="k">return</span><span class="p">(</span><span class="n">resultsDict</span><span class="p">)</span>
+
+
+
+
+
+
+
+
+
+
+
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h3><a href="../../index.html">Table Of Contents</a></h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../untargeted.html">Simulating a Survey</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../targeted.html">Simulating a Targeted Survey</a></li>
+</ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">surveySim 0.0.6 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, J.R. Pierel.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

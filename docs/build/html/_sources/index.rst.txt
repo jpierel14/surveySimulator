@@ -15,7 +15,8 @@ surveySim is a software package designed to quickly estimate the number of super
    :caption: Contents:
 
    install
-   examples
+   untargeted
+   targeted
    
    
 Indices and tables

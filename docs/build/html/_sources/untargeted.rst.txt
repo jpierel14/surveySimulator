@@ -1,9 +1,9 @@
-*******************************
-Simulating an Untargeted Survey
-*******************************
+**********************
+Simulating a Survey
+**********************
 
-Creating an Untargeted Survey
-=============================
+Untargeted Survey
+=================
 
 For an untargeted survey search, use the following example:
 
@@ -13,14 +13,7 @@ For an untargeted survey search, use the following example:
      from __future__ import print_function
      import surveySim
      from astropy import units as u
-     snls=surveySim.survey(name='SNLS',snTypes=['Ia','Ib','Ic','IIP'],zmin=.1,zmax=1.1,dz=.05)
-     snls.area=4*u.deg**2
-     snls.cadence=4*u.day
-     snls.magLimits=[24]
-     snls.filters=['sdss::i']
-     snls.surveyLength=2.08*u.year
-     snls.unTargetedSurvey(zpsys='vega')
-     print(snls)     
+     
 
 Out::
   
@@ -50,6 +43,10 @@ Out::
 		-------------------
 
 
+
+
+
+
 Plot the Results in a Histogram
 ===============================
 You can directly plot a specific band from the result Dictionary::
@@ -59,7 +56,7 @@ You can directly plot a specific band from the result Dictionary::
 
 Out:
 
-.. image:: examples/example_plot.png
+.. image:: examples/example_plot_untar.png
     :width: 600px
     :align: center
     :height: 400px

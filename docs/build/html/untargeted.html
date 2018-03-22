@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Simulating an Untargeted Survey &#8212; surveySim 0.0.6 documentation</title>
+    <title>Simulating a Survey &#8212; surveySim 0.0.6 documentation</title>
     
     <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -26,7 +26,9 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Simulating a Targeted Survey" href="targeted.html" />
+    <link rel="prev" title="Installation" href="install.html" /> 
   </head>
   <body role="document">
     <div class="related" role="navigation" aria-label="related navigation">
@@ -35,6 +37,12 @@
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="targeted.html" title="Simulating a Targeted Survey"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="install.html" title="Installation"
+             accesskey="P">previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="index.html">surveySim 0.0.6 documentation</a> &#187;</li> 
       </ul>
     </div>  
@@ -44,22 +52,14 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="simulating-an-untargeted-survey">
-<h1>Simulating an Untargeted Survey<a class="headerlink" href="#simulating-an-untargeted-survey" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="creating-an-untargeted-survey">
-<h2>Creating an Untargeted Survey<a class="headerlink" href="#creating-an-untargeted-survey" title="Permalink to this headline">¶</a></h2>
+  <div class="section" id="simulating-a-survey">
+<h1>Simulating a Survey<a class="headerlink" href="#simulating-a-survey" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="untargeted-survey">
+<h2>Untargeted Survey<a class="headerlink" href="#untargeted-survey" title="Permalink to this headline">¶</a></h2>
 <p>For an untargeted survey search, use the following example:</p>
 <div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
 <span class="kn">import</span> <span class="nn">surveySim</span>
 <span class="kn">from</span> <span class="nn">astropy</span> <span class="kn">import</span> <span class="n">units</span> <span class="k">as</span> <span class="n">u</span>
-<span class="n">snls</span><span class="o">=</span><span class="n">surveySim</span><span class="o">.</span><span class="n">survey</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;SNLS&#39;</span><span class="p">,</span><span class="n">snTypes</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Ia&#39;</span><span class="p">,</span><span class="s1">&#39;Ib&#39;</span><span class="p">,</span><span class="s1">&#39;Ic&#39;</span><span class="p">,</span><span class="s1">&#39;IIP&#39;</span><span class="p">],</span><span class="n">zmin</span><span class="o">=.</span><span class="mi">1</span><span class="p">,</span><span class="n">zmax</span><span class="o">=</span><span class="mf">1.1</span><span class="p">,</span><span class="n">dz</span><span class="o">=.</span><span class="mo">05</span><span class="p">)</span>
-<span class="n">snls</span><span class="o">.</span><span class="n">area</span><span class="o">=</span><span class="mi">4</span><span class="o">*</span><span class="n">u</span><span class="o">.</span><span class="n">deg</span><span class="o">**</span><span class="mi">2</span>
-<span class="n">snls</span><span class="o">.</span><span class="n">cadence</span><span class="o">=</span><span class="mi">4</span><span class="o">*</span><span class="n">u</span><span class="o">.</span><span class="n">day</span>
-<span class="n">snls</span><span class="o">.</span><span class="n">magLimits</span><span class="o">=</span><span class="p">[</span><span class="mi">24</span><span class="p">]</span>
-<span class="n">snls</span><span class="o">.</span><span class="n">filters</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;sdss::i&#39;</span><span class="p">]</span>
-<span class="n">snls</span><span class="o">.</span><span class="n">surveyLength</span><span class="o">=</span><span class="mf">2.08</span><span class="o">*</span><span class="n">u</span><span class="o">.</span><span class="n">year</span>
-<span class="n">snls</span><span class="o">.</span><span class="n">unTargetedSurvey</span><span class="p">(</span><span class="n">zpsys</span><span class="o">=</span><span class="s1">&#39;vega&#39;</span><span class="p">)</span>
-<span class="k">print</span><span class="p">(</span><span class="n">snls</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Out:</p>
@@ -97,7 +97,7 @@
 </pre></div>
 </div>
 <p>Out:</p>
-<a class="reference internal image-reference" href="_images/example_plot.png"><img alt="alternate text" class="align-center" src="_images/example_plot.png" style="width: 600px; height: 400px;" /></a>
+<a class="reference internal image-reference" href="_images/example_plot_untar.png"><img alt="alternate text" class="align-center" src="_images/example_plot_untar.png" style="width: 600px; height: 400px;" /></a>
 </div>
 </div>
 
@@ -109,16 +109,26 @@
         <div class="sphinxsidebarwrapper">
 <h3><a href="index.html">Table Of Contents</a></h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="untargeted.html">Simulating a Survey</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Simulating a Survey</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#untargeted-survey">Untargeted Survey</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#plot-the-results-in-a-histogram">Plot the Results in a Histogram</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="targeted.html">Simulating a Targeted Survey</a></li>
 </ul>
 
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="install.html"
+                        title="previous chapter">Installation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="targeted.html"
+                        title="next chapter">Simulating a Targeted Survey</a></p>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
-      <li><a href="_sources/examples.rst.txt"
+      <li><a href="_sources/untargeted.rst.txt"
             rel="nofollow">Show Source</a></li>
     </ul>
    </div>
@@ -142,6 +152,12 @@
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
+        <li class="right" >
+          <a href="targeted.html" title="Simulating a Targeted Survey"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="install.html" title="Installation"
+             >previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="index.html">surveySim 0.0.6 documentation</a> &#187;</li> 
       </ul>
     </div>

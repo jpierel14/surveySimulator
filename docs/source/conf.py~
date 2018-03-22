@@ -113,7 +113,6 @@ html_theme_options = {
     "sidebarlinkcolor":'white',
 }
 
-autoclass_content = 'both'
 
 #changes the sidebar so the whole toctree is there all the time. 
 html_sidebars = { '**': ['globaltoc.html', 'relations.html', 'sourcelink.html', 'searchbox.html'], }

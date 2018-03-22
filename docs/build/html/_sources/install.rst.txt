@@ -35,4 +35,4 @@ version using ``git``::
 
 then::
 
-    ./setup.py install
+    python setup.py install

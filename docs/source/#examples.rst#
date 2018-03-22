@@ -59,7 +59,7 @@ You can directly plot a specific band from the result Dictionary::
 
 Out:
 
-.. image:: examples/example_plot.png
+.. image:: examples/example_plot_untar.png
     :width: 600px
     :align: center
     :height: 400px

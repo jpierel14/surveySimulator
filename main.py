@@ -75,7 +75,17 @@ print
 print('Total Lower Bound:',str(np.sum(allSne_lower)))
 print('Total Upper Bound:',str(np.sum(allSne_upper)))
 '''
-snls=surveySim.survey(name='SNLS',snTypes=['Ia','Ib','Ic','IIP'],mu=1,zmin=.1,zmax=1.1,dz=.05)
+slacs=surveySim.survey(name='SLACS',snTypes=['Ia','Ib','Ic','IIP'])
+slacs.cadence=3*u.day
+slacs.magLimits=[24.7]
+slacs.filters=['sdss::r']
+slacs.surveyLength=1*u.year
+slacs.galaxies=surveySim.load_example_data()
+slacs.targetedSurvey(zpsys='ab')
+print(slacs)
+slacs.plotHist('sdss::r','Ia',savePlot=True,showPlot=False)
+
+snls=surveySim.survey(name='SNLS',snTypes=['Ia','Ib','Ic','IIP'],zmin=.1,zmax=1.1,dz=.05)
 snls.area=4*u.deg**2
 snls.cadence=4*u.day
 snls.magLimits=[24]
@@ -83,8 +93,7 @@ snls.filters=['sdss::i']
 snls.surveyLength=2.08*u.year
 snls.unTargetedSurvey(zpsys='vega')
 print(snls)
-snls.plotHist('sdss::i','Ia',showPlot=False,savePlot=True)
-plt.show()
+snls.plotHist('sdss::i','Ia',savePlot=True,showPlot=False)#,showPlot=False,savePlot=True)
 #surveySim.plotHist(snYield['sdss::i'])
 
 
