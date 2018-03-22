@@ -107,8 +107,8 @@ pygments_style = 'emacs'
 # documentation.
 #
 html_theme_options = {
-    "relbarbgcolor": "#045A0B",
-    "sidebarbgcolor":"#08A614",
+    "relbarbgcolor": "#000066",
+    "sidebarbgcolor":"#0000b3",
     "sidebartextcolor":'white',
     "sidebarlinkcolor":'white',
 }
