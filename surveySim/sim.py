@@ -111,7 +111,11 @@ class survey(dict):
 			sys.exit()
 		if np.any([x.lower().find('paritel') for x in self.filters]):
 			for f in ['J','H','Ks']:
-				wave,trans=np.loadtxt(os.path.join('surveySim','data','bands',str(f[0]).lower()+'Band','paritel'+f+'.dat'),unpack=True)
+				wave,trans=np.loadtxt(
+					os.path.join(os.path.dirname(os.path.realpath(__file__)),
+								 'data','bands',
+								 str(f[0]).lower()+'Band','paritel'+f+'.dat'),
+					unpack=True)
 				wave*=10000
 				sncosmo.registry.register(sncosmo.Bandpass(wave,trans,name='paritel::'+f.lower()),force=True)
 		
