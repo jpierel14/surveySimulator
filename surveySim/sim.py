@@ -57,6 +57,11 @@ class survey(dict):
 		self.surveyLength=None
 		self.yields=dict([])
 		self.galaxies=None
+		self.tobs=None
+		self.ncc=None
+		self.errncc=None
+		self.nia=None
+		self.errnia=None
 
 	def _normalize(self,unTargeted=True):
 		if unTargeted:
@@ -76,8 +81,11 @@ class survey(dict):
 					self.galaxies.rename_column(col,col.lower())
 			if 'redshift' in self.galaxies.colnames:
 				self.galaxies.rename_column('redshift','z')
-			elif 'z' not in self.galaxies.colnames:
+			if 'zs' in self.galaxies.colnames:
+				self.galaxies.rename_column('zs', 'z')
+			if 'z' not in self.galaxies.colnames:
 				print('Could not find redshift in your column names, rename to "z" if it exists')
+				import pdb; pdb.set_trace()
 				sys.exit(1)
 			if 'sfr' not in self.galaxies.colnames:
 				print('SFR not found, change column name to "SFR" if it exists')
@@ -88,19 +96,34 @@ class survey(dict):
 					self.mu=1
 				else:
 					self.mu=np.array(self.galaxies['mu'])
+			if 'tobs' in self.galaxies.colnames:
+				self.tobs = np.array(self.galaxies['tobs'])
+			if 'ncc' in self.galaxies.colnames:
+				self.ncc = np.array(self.galaxies['ncc'])
+			if 'nia' in self.galaxies.colnames:
+				self.nia = np.array(self.galaxies['nia'])
+			if 'errncc' in self.galaxies.colnames:
+				self.errncc = np.array(self.galaxies['errncc'])
+			if 'errnia' in self.galaxies.colnames:
+				self.errnia = np.array(self.galaxies['errnia'])
+
 			self.galaxies.sort('z')
 
 		try:
 			unit=self.cadence.unit
 		except:
 			print('You did not add an astropy unit to your cadence, assuming days.')
-			cadence*=u.day
+			self.cadence*=u.day
 		self.cadence=self.cadence.to(u.day).value
 		try:
 			unit=self.surveyLength.unit
 		except:
 			print('You did not add an astropy unit to your survey length, assuming years.')
 			self.surveyLength*=u.year
+		#TODO: when user provides tobs in input data file, don't require surveylength
+		if self.tobs is not None:
+			self.surveyLength = self.tobs*u.year
+
 		self.surveyLength=self.surveyLength.to(u.year).value
 		if not isinstance(self.filters,(list,tuple)):
 			self.filters=[self.filters]
@@ -111,7 +134,10 @@ class survey(dict):
 			sys.exit()
 		if np.any([x.lower().find('paritel') for x in self.filters]):
 			for f in ['J','H','Ks']:
-				wave,trans=np.loadtxt(os.path.join('surveySim','data','bands',str(f[0]).lower()+'Band','paritel'+f+'.dat'),unpack=True)
+				wave,trans=np.loadtxt(
+					os.path.join(__dir__, 'data','bands',
+								 str(f[0]).lower()+'Band','paritel'+f+'.dat'),
+					unpack=True)
 				wave*=10000
 				sncosmo.registry.register(sncosmo.Bandpass(wave,trans,name='paritel::'+f.lower()),force=True)
 		
@@ -127,11 +153,12 @@ class survey(dict):
 
 		"""
 		if self.yields:
+			# TODO : handle different survey lengths for different galaxies
 			print('Survey Name:'+self.name)
-			if self.surveyLength == 1:
-				print('		Length: '+str(self.surveyLength)+' Year')
+			if np.median(self.surveyLength) == 1:
+				print('		Length: '+str(np.median(self.surveyLength))+' Year')
 			else:
-				print('		Length: '+str(self.surveyLength)+' Years')
+				print('		Length: '+str(np.median(self.surveyLength))+' Years')
 			print('		Cadence: '+str(self.cadence)+' Days')
 			if not self.galaxies:
 				print('		Area: '+str(self.degArea.value)+' Square Degrees')
@@ -217,9 +244,23 @@ class survey(dict):
 			else:
 				thetas.append(float(.05/(1-.05)))
 		self.galaxies['theta']=np.array(thetas)
-		self.galaxies['SNR_CC_upper']=kcc_upper*1E-3*self.galaxies['sfr']
-		self.galaxies['SNR_CC_lower']=kcc_lower*1E-3*self.galaxies['sfr']
-		if 'mass' in self.galaxies.colnames:
+		if 'ncc' in self.galaxies.colnames:
+			self.galaxies['SNR_CC_upper'] = self.galaxies['ncc'] + \
+											self.galaxies['errncc']
+			self.galaxies['SNR_CC_lower'] = self.galaxies['ncc'] - \
+											self.galaxies['errncc']
+		else:
+			self.galaxies['SNR_CC_upper'] = kcc_upper * 1E-3 * self.galaxies[
+				'sfr']
+			self.galaxies['SNR_CC_lower'] = kcc_lower * 1E-3 * self.galaxies[
+				'sfr']
+
+		if 'nia' in self.galaxies.colnames:
+			self.galaxies['SNR_Ia_upper'] = self.galaxies['nia'] + \
+									self.galaxies['errnia']
+			self.galaxies['SNR_Ia_lower'] = self.galaxies['nia'] - \
+								self.galaxies['errnia']
+		elif 'mass' in self.galaxies.colnames:
 			self.galaxies['SNR_Ia_lower']=1.05E-10*self.galaxies['mass']**.68+kcc_lower*self.galaxies['theta']*1E-3*self.galaxies['sfr']
 			self.galaxies['SNR_Ia_upper']=1.05E-10*self.galaxies['mass']**.68+kcc_upper*self.galaxies['theta']*1E-3*self.galaxies['sfr']
 		else:
@@ -239,7 +280,9 @@ class survey(dict):
 			self.yields[self.filters[i]]=snYields
 	
 
-	def plotHist(self,band,snClass,bound='Lower',facecolor='green',showPlot=True,savePlot=False):
+	def plotHist(self,band,snClass,bound='Lower',
+				 facecolor='green',showPlot=True,savePlot=False,
+				 **kwargs):
 		"""
 		Plot a histogram of SN yields results.
 
@@ -258,14 +301,16 @@ class survey(dict):
 		fig=plt.figure()
 		ax=fig.gca()
 		if self.galaxies:
-			plt.bar(self.galaxies['z'],height=self.yields[band][snClass][bound.lower()]/self.surveyLength,facecolor=facecolor)
+			plt.bar(self.galaxies['z'],
+					height=self.yields[band][snClass][bound.lower()]/self.surveyLength,
+					width=0.02, **kwargs)
 			if isinstance(self.mu,np.ndarray):
 				plt.title('Targeted Survey '+bound+' Limit SN Yield--Band='+band+'--Mag Limit='+str(self.magLimits[self.filters==band])+'--Type '+snClass+'--Average mu='+str(np.round(self.mu.mean(),1)),size=14)
 			else:
 				plt.title('Targeted Survey '+bound+' Limit SN Yield--Band='+band+'--Mag Limit='+str(self.magLimits[self.filters==band])+'--Type '+snClass+'--mu='+str(self.mu),size=14)
 			tType='target'
 		else:
-			plt.bar(np.arange(self.zmin,self.zmax,self.dz),height=self.yields[band][snClass][bound.lower()]/self.surveyLength, width=self.dz,facecolor=facecolor)
+			plt.bar(np.arange(self.zmin,self.zmax,self.dz),height=self.yields[band][snClass][bound.lower()]/self.surveyLength, width=self.dz,facecolor=facecolor, **kwargs)
 			plt.title('Untargeted Survey '+bound+' Limit SN Yield--Band='+band+'--Mag Limit='+str(self.magLimits[self.filters==band])+'--Type '+snClass+'--mu='+str(self.mu),size=14)
 			tType='unTarget'
 		plt.xlabel(r'$Redshift$',size=16)
@@ -286,7 +331,7 @@ def load_example_data():
 def _ccm_extinction(wave, ebv, r_v=3.1):
 	"""
 	(Private)
-	Heler function for dereddening.
+	Helper function for dereddening.
 
 	"""
 	scalar = not np.iterable(wave)
