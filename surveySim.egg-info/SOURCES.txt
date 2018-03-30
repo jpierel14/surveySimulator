@@ -22,5 +22,7 @@ surveySim/data/bands/kBand/tophatK.dat
 surveySim/data/bands/rBand/tophatR.dat
 surveySim/data/bands/uBand/tophatU.dat
 surveySim/data/bands/vBand/tophatV.dat
+surveySim/data/examples/bells_top10.dat
+surveySim/data/examples/bells_top10.dat~
 surveySim/data/examples/galaxies.dat
 surveySim/data/examples/old.dat
