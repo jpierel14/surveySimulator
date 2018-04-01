@@ -213,7 +213,7 @@ class survey(dict):
             print('No yields calculated.')
         return('')
 
-    def unTargetedSurvey(self,Ia_av=.3,CC_av=.9,zpsys='ab',lc_sampling=20): #t_obs in years
+    def unTargetedSurvey(self,Ia_av=.3,CC_av=.9,zpsys='ab',lc_sampling=10): #t_obs in years
         """
         Run an untargeted survey from a survey object.
 
@@ -230,7 +230,7 @@ class survey(dict):
         #filterDict=dict([])
         absolutes=getAbsoluteDist()
         for i in range(len(self.filters)):
-            _SNfractions=_SNfraction(self.snTypes,self.filters[i],self.magLimits[i],redshifts,self.cadence,absolutes,self.mu,Ia_av,CC_av,zpsys)
+            _SNfractions=_SNfraction(self.snTypes,self.filters[i],self.magLimits[i],redshifts,self.cadence,absolutes,lc_sampling,self.mu,Ia_av,CC_av,zpsys)
             snYields=dict([])
             for snClass in _SNfractions.keys():
                 if snClass=='Ia':
@@ -239,7 +239,7 @@ class survey(dict):
                     snYields[snClass]={'upper':_SNfractions[snClass]*N_CC_upper,'lower':_SNfractions[snClass]*N_CC_lower}
             self.yields[self.filters[i]]=snYields
 
-    def targetedSurvey(self,Ia_av=.3,CC_av=.9,zpsys='ab',lc_sampling=20):
+    def targetedSurvey(self,Ia_av=.3,CC_av=.9,zpsys='ab',lc_sampling=10):
         """
         Run a targeted survey from a survey object.
 
@@ -289,7 +289,7 @@ class survey(dict):
 
         absolutes=getAbsoluteDist()
         for i in range(len(self.filters)):
-            _SNfractions=_SNfraction(self.snTypes,self.filters[i],self.magLimits[i],self.galaxies['z'],self.cadence,absolutes,self.mu,Ia_av,CC_av,zpsys)
+            _SNfractions=_SNfraction(self.snTypes,self.filters[i],self.magLimits[i],self.galaxies['z'],self.cadence,absolutes,lc_sampling,self.mu,Ia_av,CC_av,zpsys)
             snYields=dict([])
             for snClass in _SNfractions.keys():
                 if snClass=='Ia':
@@ -520,7 +520,7 @@ def getAbsoluteDist():
     return(absDict)
     
 
-def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,mu,Ia_av,CC_av,zpsys):
+def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,samplingRate,mu,Ia_av,CC_av,zpsys):
     """
     (Private)
     Heler function for N_frac
@@ -532,7 +532,7 @@ def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,mu,Ia_av,CC_av
     resultsDict=dict([])
 
     for snClass in classes:
-        absoluteList=absolutes[snClass]['dist'][0]+absolutes[snClass]['dist'][1]*np.random.randn(20)
+        absoluteList=absolutes[snClass]['dist'][0]+absolutes[snClass]['dist'][1]*np.random.randn(samplingRate)
 
         if snClass=='Ia':
             tempmagLimit=magLimit-_ccm_extinction(sncosmo.get_bandpass(band).wave_eff,Ia_av/3.1)
