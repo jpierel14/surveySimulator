@@ -104,7 +104,7 @@ for snClass in snYield.keys():
     surveySim.plotHist(snYield,snClass,magLimit,mu,zmin,zmax,dz,bound='upper')
 '''
 
-liverpool=surveySim.survey(name='Liverpool',snTypes=['Ia','Ib','Ic','IIP','IIL','IIn'])
+liverpool=surveySim.survey(name='Liverpool',snTypes=['Ia','Ib','Ic','IIP','IIn','IIL','IIb'])
 liverpool.magLimits=[23.5]
 liverpool.cadence=10*u.day
 liverpool.filters=['sdss::r']
