@@ -198,6 +198,7 @@ class survey(dict):
                     print('		Total CC Lower Bound:'+str(np.round(np.sum(allCC_lower),2)))
                     print()
                     print('		Total Lower Bound:'+str(np.round(np.sum(allSne_lower),2)))
+                    print('		Total Expectation:'+str(np.round((np.sum(allSne_lower) + np.sum(allSne_upper))/2.,2)))
                     print('		Total Upper Bound:'+str(np.round(np.sum(allSne_upper),2)))
                     print('-------------------')
                 else:
