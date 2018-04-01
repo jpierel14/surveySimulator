@@ -161,16 +161,16 @@ class survey(dict):
                 # TODO : handle different survey lengths for different galaxies
                 print('Survey Name: '+self.name)
                 if np.median(self.surveyLength) == 1:
-                    print('		Length: '+str(np.median(self.surveyLength))+' Year')
+                    print('     Length: '+str(np.median(self.surveyLength))+' Year')
                 else:
-                    print('		Length: '+str(np.median(self.surveyLength))+' Years')
-                print('		Cadence: '+str(self.cadence)+' Days')
+                    print('     Length: '+str(np.median(self.surveyLength))+' Years')
+                print('     Cadence: '+str(self.cadence)+' Days')
                 if not self.galaxies:
-                    print('		Area: '+str(self.degArea.value)+' Square Degrees')
-                    print('		Redshift Range: '+str(self.zmin)+'-->'+str(self.zmax))
+                    print('     Area: '+str(self.degArea.value)+' Square Degrees')
+                    print('     Redshift Range: '+str(self.zmin)+'-->'+str(self.zmax))
                 else:
-                    print('		Number of Galaxies: '+str(len(self.galaxies)))
-                    print('		Redshift Range: '+str(np.round(np.min(self.galaxies['z']),2))+'-->'+str(np.round(np.max(self.galaxies['z']),2)))
+                    print('     Number of Galaxies: '+str(len(self.galaxies)))
+                    print('     Redshift Range: '+str(np.round(np.min(self.galaxies['z']),2))+'-->'+str(np.round(np.max(self.galaxies['z']),2)))
             for band in self.yields.keys():
                 if verbose:
                     print('-------------------')
@@ -183,8 +183,8 @@ class survey(dict):
                 allCC_lower=[]
                 allCC_upper=[]
                 for key in snYield.keys():
-                    if verbose: print('		Upper Bound '+key+':'+str(np.round(np.sum(snYield[key]['upper']),2)))
-                    if verbose: print('		Lower Bound '+key+':'+str(np.round(np.sum(snYield[key]['lower']),2)))
+                    if verbose: print('     Upper Bound '+key+':'+str(np.round(np.sum(snYield[key]['upper']),2)))
+                    if verbose: print('     Lower Bound '+key+':'+str(np.round(np.sum(snYield[key]['lower']),2)))
                     allSne_lower.append(np.sum(snYield[key]['lower']))
                     allSne_upper.append(np.sum(snYield[key]['upper']))
                     if key!='Ia':
@@ -192,13 +192,14 @@ class survey(dict):
                         allCC_lower.append(np.sum(snYield[key]['lower']))
                 if verbose:
                     print()
-                    print('		Total Ia Upper Bound:'+str(np.round(np.sum(snYield['Ia']['upper']),2)))
-                    print('		Total Ia Lower Bound:'+str(np.round(np.sum(snYield['Ia']['lower']),2)))
-                    print('		Total CC Upper Bound:'+str(np.round(np.sum(allCC_upper),2)))
-                    print('		Total CC Lower Bound:'+str(np.round(np.sum(allCC_lower),2)))
+                    print('     Total Ia Upper Bound:'+str(np.round(np.sum(snYield['Ia']['upper']),2)))
+                    print('     Total Ia Lower Bound:'+str(np.round(np.sum(snYield['Ia']['lower']),2)))
+                    print('     Total CC Upper Bound:'+str(np.round(np.sum(allCC_upper),2)))
+                    print('     Total CC Lower Bound:'+str(np.round(np.sum(allCC_lower),2)))
                     print()
-                    print('		Total Lower Bound:'+str(np.round(np.sum(allSne_lower),2)))
-                    print('		Total Upper Bound:'+str(np.round(np.sum(allSne_upper),2)))
+                    print('     Total Lower Bound:'+str(np.round(np.sum(allSne_lower),2)))
+                    print('     Total Expectation:'+str(np.round((np.sum(allSne_lower) + np.sum(allSne_upper))/2.,2)))
+                    print('     Total Upper Bound:'+str(np.round(np.sum(allSne_upper),2)))
                     print('-------------------')
                 else:
                     print(band+'  ' + str(self.magLimits[self.filters==band]) + '    ' +
@@ -305,7 +306,7 @@ class survey(dict):
 								self.galaxies['SNR_CC_upper'] * \
 								self.surveyLength,
 						'lower':_SNfractions[snClass] * \
-								self.galaxies['SNR_Ia_lower'] * \
+								self.galaxies['SNR_CC_lower'] * \
 								self.surveyLength
 					}
             self.yields[self.filters[i]]=snYields
