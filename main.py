@@ -108,7 +108,7 @@ liverpool=surveySim.survey(name='Liverpool',snTypes=['Ia','Ib','Ic','IIP','IIL',
 liverpool.magLimits=[23.5]
 liverpool.cadence=10*u.day
 liverpool.filters=['sdss::r']
-liverpool.surveyLength=.5*u.year
+liverpool.surveyLength=1*u.year
 liverpool.mu=5
 liverpool.galaxies=ascii.read(os.path.join('surveySim','data','examples','liverpool.dat'))
 liverpool.targetedSurvey(zpsys='ab',Ia_av=.3,CC_av=.49)

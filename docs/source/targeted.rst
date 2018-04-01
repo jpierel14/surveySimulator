@@ -20,6 +20,7 @@ For a targeted survey search, use the following example:
      slacs.surveyLength=1*u.year
      slacs.galaxies=surveySim.load_example_data()
      slacs.targetedSurvey(zpsys='ab')
+     slacs.verbose=True
      print(slacs)
      slacs.plotHist('sdss::r','Ia')
      
