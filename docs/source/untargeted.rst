@@ -13,6 +13,16 @@ For an untargeted survey search, use the following example:
      from __future__ import print_function
      import surveySim
      from astropy import units as u
+     snls=surveySim.survey(name='SNLS',snTypes=['Ia','Ib','Ic','IIP'],zmin=.1,zmax=1.1,dz=.05)
+     snls.area=4*u.deg**2
+     snls.cadence=4*u.day
+     snls.magLimits=[24]
+     snls.filters=['sdss::i']
+     snls.surveyLength=2.08*u.year
+     snls.unTargetedSurvey(zpsys='vega')
+     snls.verbose=True
+     print(snls)
+     snls.plotHist('sdss::i','Ia',savePlot=True,showPlot=False)#,showPlot=False,savePlot=True)
      
 
 Out::

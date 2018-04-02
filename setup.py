@@ -22,5 +22,5 @@ setup(
     packages=['surveySim'],
     author_email='jr23@email.sc.edu',
     package_data={'surveySim':data_files},
-    version='0.0.9'
+    version='0.1.0'
 )
