@@ -213,7 +213,7 @@ class survey(dict):
             print('No yields calculated.')
         return('')
 
-    def unTargetedSurvey(self,absolutes={'Ia':-19.25,'Ib':-17.45,'Ic':-17.66,'IIP':-16.75},Ia_av=.3,CC_av=.9,zpsys='ab'): #t_obs in years
+    def unTargetedSurvey(self,Ia_av=.3,CC_av=.9,zpsys='ab',lc_sampling=10): #t_obs in years
         """
         Run an untargeted survey from a survey object.
 
@@ -228,8 +228,9 @@ class survey(dict):
         self._normalize(unTargeted=True)
         redshifts,N_CC_upper,N_CC_lower,N_Ia_upper,N_Ia_lower=_getSNexploding(self.surveyLength,self.area,self.dz,self.zmin,self.zmax)
         #filterDict=dict([])
+        absolutes=getAbsoluteDist()
         for i in range(len(self.filters)):
-            _SNfractions=_SNfraction(self.snTypes,self.filters[i],self.magLimits[i],redshifts,self.cadence,absolutes,self.mu,Ia_av,CC_av,zpsys)
+            _SNfractions=_SNfraction(self.snTypes,self.filters[i],self.magLimits[i],redshifts,self.cadence,absolutes,lc_sampling,self.mu,Ia_av,CC_av,zpsys)
             snYields=dict([])
             for snClass in _SNfractions.keys():
                 if snClass=='Ia':
@@ -238,7 +239,7 @@ class survey(dict):
                     snYields[snClass]={'upper':_SNfractions[snClass]*N_CC_upper,'lower':_SNfractions[snClass]*N_CC_lower}
             self.yields[self.filters[i]]=snYields
 
-    def targetedSurvey(self,absolutes={'Ia':-19.25,'Ib':-17.45,'Ic':-17.66,'IIP':-16.75,'IIL':-17,'IIn':-17},Ia_av=.3,CC_av=.9,zpsys='ab'):
+    def targetedSurvey(self,Ia_av=.3,CC_av=.9,zpsys='ab',lc_sampling=10):
         """
         Run a targeted survey from a survey object.
 
@@ -270,6 +271,7 @@ class survey(dict):
         if 'n_cc' in self.galaxies.colnames:
             self.galaxies['SNR_CC_upper'] = self.galaxies['n_cc'] + self.galaxies['ncc_err']
             self.galaxies['SNR_CC_lower'] = self.galaxies['n_cc'] - self.galaxies['ncc_err']
+            print(self.galaxies['SNR_CC_upper'],self.galaxies['SNR_CC_lower'])
 
         else:
             self.galaxies['SNR_CC_upper'] = kcc_upper * 1E-3 * self.galaxies['sfr']
@@ -286,9 +288,9 @@ class survey(dict):
             self.galaxies['SNR_Ia_lower']=1.035*kcc_lower*self.galaxies['theta']*1E-3*self.galaxies['sfr']
             self.galaxies['SNR_Ia_upper']=1.035*kcc_upper*self.galaxies['theta']*1E-3*self.galaxies['sfr']
 
-
+        absolutes=getAbsoluteDist()
         for i in range(len(self.filters)):
-            _SNfractions=_SNfraction(self.snTypes,self.filters[i],self.magLimits[i],self.galaxies['z'],self.cadence,absolutes,self.mu,Ia_av,CC_av,zpsys)
+            _SNfractions=_SNfraction(self.snTypes,self.filters[i],self.magLimits[i],self.galaxies['z'],self.cadence,absolutes,lc_sampling,self.mu,Ia_av,CC_av,zpsys)
             snYields=dict([])
             for snClass in _SNfractions.keys():
                 if snClass=='Ia':
@@ -303,10 +305,10 @@ class survey(dict):
                 else:
                     snYields[snClass]={
 						'upper':_SNfractions[snClass] * \
-								self.galaxies['SNR_CC_upper'] * \
+								self.galaxies['SNR_CC_upper']*absolutes[snClass]['frac'] * \
 								self.surveyLength,
 						'lower':_SNfractions[snClass] * \
-								self.galaxies['SNR_CC_lower'] * \
+								self.galaxies['SNR_CC_lower']*absolutes[snClass]['frac'] * \
 								self.surveyLength
 					}
             self.yields[self.filters[i]]=snYields
@@ -505,8 +507,21 @@ def _snMax(model,band,zpsys,tStep=1):
     mags=mags[~np.isnan(mags)]
     return(tgrid[mags==np.min(mags)][0])
 
+def getAbsoluteDist():
+    absolutes=ascii.read(os.path.join(__dir__,'data','absolutes.ref'))
+    total=np.sum(absolutes['N'][absolutes['type']!='Ia'])
+    absDict=dict([])
+    for row in absolutes:
+        if row['type']=='Ia':
+            frac=1
+        else:
+            frac=row['N']/total
+        absDict[row['type']]={'dist':(row['mean'],row['sigma']),'frac':frac}
 
-def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,mu,Ia_av,CC_av,zpsys):
+    return(absDict)
+    
+
+def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,samplingRate,mu,Ia_av,CC_av,zpsys):
     """
     (Private)
     Heler function for N_frac
@@ -518,35 +533,39 @@ def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,mu,Ia_av,CC_av
     resultsDict=dict([])
 
     for snClass in classes:
-        tempmagLimit=magLimit
+        absoluteList=absolutes[snClass]['dist'][0]+absolutes[snClass]['dist'][1]*np.random.randn(samplingRate)
+
         if snClass=='Ia':
-            tempmagLimit-=_ccm_extinction(sncosmo.get_bandpass(band).wave_eff,Ia_av/3.1)
+            tempmagLimit=magLimit-_ccm_extinction(sncosmo.get_bandpass(band).wave_eff,Ia_av/3.1)
         else:
-            tempmagLimit-=_ccm_extinction(sncosmo.get_bandpass(band).wave_eff,CC_av/3.1)
-        absolute=absolutes[snClass]
+            tempmagLimit=magLimit-_ccm_extinction(sncosmo.get_bandpass(band).wave_eff,CC_av/3.1)
         if isinstance(mu,np.ndarray):
             magLimits=[tempmagLimit+2.5*np.log10(mu[i]) for i in range(len(redshifts))]
         else:
             magLimits=[tempmagLimit+2.5*np.log10(mu) for i in range(len(redshifts))]
         fractions=[]
+        print(snClass)
+        print(magLimits[0])
+
         for i in range(len(redshifts)):
+
             model=sncosmo.Model(sne[snClass])
             model.set(z=redshifts[i])
-            model.set_source_peakabsmag(absolute,'bessellb',zpsys)
-            #model.set(t0=-_snMax(model,band,zpsys))
-            #if snClass=='Ia':
-            #	sncosmo.plot_lc(model=model,bands=['sdss::i'])
-            #	plt.show()
-            #	sys.exit()
-            t0=_snMax(model,band,zpsys)
-            mags=model.bandmag(band,zpsys,np.append(np.arange(t0-(cadence+1),t0,1),np.arange(t0,t0+cadence+1,1)))
-            if len(mags[mags<=magLimits[i]])==0:
-                fractions.append(0)
-            else:
-                if len(mags[mags<=magLimits[i]])<cadence:
-                    fractions.append(float(len(mags[mags<=magLimits[i]])/cadence))
+            tempFrac=[]
+            for absolute in absoluteList:
+                print(absolute)
+                model.set_source_peakabsmag(absolute,'bessellb',zpsys)
+                t0=_snMax(model,band,zpsys)
+                mags=model.bandmag(band,zpsys,np.append(np.arange(t0-(cadence+1),t0,1),np.arange(t0,t0+cadence+2,1)))
+                print(np.min(mags))
+                if len(mags[mags<=magLimits[i]])==0:
+                    tempFrac.append(0)
                 else:
-                    fractions.append(1)
+                    if len(mags[mags<=magLimits[i]])<cadence:
+                        tempFrac.append(float(len(mags[mags<=magLimits[i]])/cadence))
+                    else:
+                        tempFrac.append(1)
+            fractions.append(np.mean(tempFrac))
         resultsDict[snClass]=np.array(fractions)
 
     return(resultsDict)
