@@ -541,16 +541,17 @@ def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,samplingRate,m
 
         absoluteList=absolutes[snClass]['dist'][0]+2*absolutes[snClass]['dist'][1]*rand
 
-        if snClass=='Ia':
-            tempmagLimit=magLimit-_ccm_extinction(sncosmo.get_bandpass(band).wave_eff,Ia_av/3.1)
-        else:
-            tempmagLimit=magLimit-_ccm_extinction(sncosmo.get_bandpass(band).wave_eff,CC_av/3.1)
+        
         if isinstance(mu,np.ndarray):
-            magLimits=[tempmagLimit+2.5*np.log10(mu[i]) for i in range(len(redshifts))]
+            magLimits=[magLimit+2.5*np.log10(mu[i]) for i in range(len(redshifts))]
         else:
-            magLimits=[tempmagLimit+2.5*np.log10(mu) for i in range(len(redshifts))]
+            magLimits=[magLimit+2.5*np.log10(mu) for i in range(len(redshifts))]
         fractions=[]
         for i in range(len(redshifts)):
+            if snClass=='Ia':
+                magLimits[i]-=magLimits[i]-_ccm_extinction(sncosmo.get_bandpass(band).wave_eff/(1+redshifts[i]),Ia_av/3.1)
+            else:
+                magLimits[i]-=magLimits[i]-_ccm_extinction(sncosmo.get_bandpass(band).wave_eff/(1+redshifts[i]),CC_av/3.1)
             tempCadence=cadence/(1+redshifts[i])
             model=sncosmo.Model(sne[snClass])
             model.set(z=redshifts[i])
