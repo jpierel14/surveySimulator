@@ -8,12 +8,10 @@ surveySim.egg-info/dependency_links.txt
 surveySim.egg-info/requires.txt
 surveySim.egg-info/top_level.txt
 surveySim/data/absolutes.ref
-surveySim/data/absolutes.ref~
 surveySim/data/models.ref
 surveySim/data/richardson.ref
 surveySim/data/rodney.ref
 surveySim/data/seds.ref
-surveySim/data/seds.ref~
 surveySim/data/bands/bBand/tophatB.dat
 surveySim/data/bands/hBand/f160w.dat
 surveySim/data/bands/hBand/paritelH.dat
