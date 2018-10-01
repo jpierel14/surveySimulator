@@ -117,15 +117,15 @@ print(liverpool)
 '''
 from scipy.stats import poisson
 from scipy.integrate import quad
-maglim = 25
+maglim = 26.5
 if True:
     glsnst = surveySim.survey(name='GLSNST',snTypes=['Ia','Ib','Ic','IIP','IIn','IIb','IIL'])
     glsnst.cadence= 20 * u.day
-    glsnst.filters=['cspjd']
+    glsnst.filters=['F160W']
     glsnst.surveyLength= 0.33 * u.year # not used, b/c tobs is defined in the input data file
     glsnst.galaxies = ascii.read('../glsnst/glsnst_sample_2018B+2019A.dat',format='commented_header', header_start=-1, data_start=0)
     glsnst.magLimits=[maglim]
-    glsnst.targetedSurvey(zpsys='ab',Ia_av=.3,CC_av=.49,lc_sampling=50)
+    glsnst.targetedSurvey(zpsys='ab',Ia_av=.3,CC_av=.49,lc_sampling=200)
     glsnst.verbose = True
     print(glsnst)
     #integral of poisson distribution mean .7 integral from 1 upwards
