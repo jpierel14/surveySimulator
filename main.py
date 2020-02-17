@@ -114,19 +114,43 @@ liverpool.galaxies=ascii.read(os.path.join('surveySim','data','examples','liverp
 liverpool.targetedSurvey(zpsys='ab',Ia_av=.3,CC_av=.49)
 liverpool.verbose=True
 print(liverpool)
-'''
+
 from scipy.stats import poisson
 from scipy.integrate import quad
-maglim = 25
+maglim = 26.5
 if True:
     glsnst = surveySim.survey(name='GLSNST',snTypes=['Ia','Ib','Ic','IIP','IIn','IIb','IIL'])
     glsnst.cadence= 20 * u.day
-    glsnst.filters=['cspjd']
+    glsnst.filters=['F160W']
     glsnst.surveyLength= 0.33 * u.year # not used, b/c tobs is defined in the input data file
     glsnst.galaxies = ascii.read('../glsnst/glsnst_sample_2018B+2019A.dat',format='commented_header', header_start=-1, data_start=0)
     glsnst.magLimits=[maglim]
-    glsnst.targetedSurvey(zpsys='ab',Ia_av=.3,CC_av=.49,lc_sampling=50)
+    glsnst.targetedSurvey(zpsys='ab',Ia_av=.3,CC_av=.49,lc_sampling=200)
     glsnst.verbose = True
     print(glsnst)
     #integral of poisson distribution mean .7 integral from 1 upwards
-    
+'''   
+
+maglims = [21.9,22.2,22.5]
+for maglim in maglims:
+    lco = surveySim.survey(name='LCO',snTypes=['Ia','Ib','Ic','IIP','IIn','IIb','IIL'])
+    lco.zp=21.
+    lco.cadence= 14. * u.day
+    lco.mu=20.
+    lco.filters=['sdss::r']
+    lco.surveyLength= 1 * u.year # not used, b/c tobs is defined in the input data file
+    lco.galaxies = ascii.read('../lco/detectability_sdssr_219_15.txt',format='commented_header', header_start=-1, data_start=0)
+    lco.galaxies['nia_err']=0
+    lco.galaxies['ncc_err']=0
+    lco.galaxies['tobs']=.5
+    lco.galaxies.sort('z')
+    #lco.galaxies=lco.galaxies[:100]
+    lco.magLimits=[maglim]
+    lco.targetedSurvey(zpsys='ab',Ia_av=.3286,CC_av=.3286,lc_sampling=50)
+    lco.verbose = True
+    print(lco)
+    #integral of poisson distribution mean .7 integral from 1 upwards
+
+
+
+
