@@ -78,7 +78,7 @@ def createSN(
     data file, and this params list must give [filename, mag_type] where
     mag_type is 'multiply' or 'add'.
     """
-    if timeArr:
+    if timeArr is not None:
         times=timeArr
     else:
         if not mjdRange:

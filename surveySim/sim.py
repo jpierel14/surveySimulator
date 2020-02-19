@@ -239,7 +239,7 @@ class survey(dict):
             poiss_res[band]=1-dist.cumulative_probability(0)
         return(poiss_res)
 
-    def unTargetedSurvey(self,Ia_av=.3,CC_av=.9,zpsys='ab',lc_sampling=10): #t_obs in years
+    def unTargetedSurvey(self,Ia_av=.3,CC_av=.9,zpsys='ab',lc_sampling=10,snrFunc=None,before_peak=False): #t_obs in years
         """
         Run an untargeted survey from a survey object.
 
@@ -256,7 +256,7 @@ class survey(dict):
         #filterDict=dict([])
         absolutes=getAbsoluteDist()
         for i in range(len(self.filters)):
-            _SNfractions=_SNfraction(self.snTypes,self.filters[i],self.magLimits[i],redshifts,self.cadence,absolutes,lc_sampling,self.mu,Ia_av,CC_av,self.zp,zpsys)
+            _SNfractions=_SNfraction(self.snTypes,self.filters[i],self.magLimits[i],redshifts,self.cadence,absolutes,lc_sampling,self.mu,Ia_av,CC_av,self.zp,zpsys,snrFunc,before_peak)
             snYields=dict([])
             for snClass in _SNfractions.keys():
                 if snClass=='Ia':
@@ -266,7 +266,7 @@ class survey(dict):
             self.yields[self.filters[i]]=snYields
         self.total_yield=self.calc_total_yield()
 
-    def targetedSurvey(self,Ia_av=.3,CC_av=.9,zpsys='ab',lc_sampling=10):
+    def targetedSurvey(self,Ia_av=.3,CC_av=.9,zpsys='ab',lc_sampling=10,snrFunc=True,before_peak=False):
         """
         Run a targeted survey from a survey object.
 
@@ -316,7 +316,7 @@ class survey(dict):
 
         absolutes=getAbsoluteDist()
         for i in range(len(self.filters)):
-            _SNfractions=_SNfraction(self.snTypes,self.filters[i],self.magLimits[i],self.galaxies['z'],self.cadence,absolutes,lc_sampling,self.mu,Ia_av,CC_av,self.zp,zpsys)
+            _SNfractions=_SNfraction(self.snTypes,self.filters[i],self.magLimits[i],self.galaxies['z'],self.cadence,absolutes,lc_sampling,self.mu,Ia_av,CC_av,self.zp,zpsys,snrFunc,before_peak)
             snYields=dict([])
             totalNum=[]
             for snClass in _SNfractions.keys():
@@ -556,7 +556,7 @@ def _getSNRfunc(path):
     mag,snr=np.loadtxt(path,unpack=True)
     return(interp1d(mag,snr))
 
-def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,samplingRate,mu,Ia_av,CC_av,zp,zpsys):
+def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,samplingRate,mu,Ia_av,CC_av,zp,zpsys,snrFunc,before_peak):
     """
     (Private)
     Heler function for N_frac
@@ -565,21 +565,21 @@ def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,samplingRate,m
     types,mods=np.loadtxt(os.path.join(__dir__,'data','seds.ref'),dtype='str',unpack=True)
 
     sne={types[i]:mods[i] for i in range(len(types))}
-    resultsDict=dict([])
-    rand=np.random.randn(samplingRate)
-    snrFunc=_getSNRfunc(os.path.join(__dir__,'data','snr','lco.dat'))
+    resultsDict=dict([])    
+
     for snClass in classes:
+        m=sncosmo.Model(sne[snClass])
 
-        absoluteList=absolutes[snClass]['dist'][0]+2*absolutes[snClass]['dist'][1]*rand
-
-        
-        if isinstance(mu,np.ndarray):
-            magLimits=[magLimit for i in range(len(redshifts))]
-        else:
-            magLimits=[magLimit for i in range(len(redshifts))]
+        absoluteList=np.random.normal(absolutes[snClass]['dist'][0],absolutes[snClass]['dist'][1],size=samplingRate)
+               
+        magLimits=[magLimit for i in range(len(redshifts))]
         fractions=[]
         for i in range(len(redshifts)):
-            
+            m.set(z=redshifts[i])
+            if before_peak:
+                time_array=np.arange(m.mintime(),0.1,1)
+            else:
+                time_array=np.arange(m.mintime(),m.maxtime(),1)    
             tempCadence=cadence#/(1+redshifts[i])
   
             tempFrac=[]
@@ -587,21 +587,23 @@ def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,samplingRate,m
             for j in range(samplingRate):
                 modname = sne[snClass]
                 snType = snClass
+                
+
                 bandlist = [band]
                 tempSN = createSN(
                     modname, snType, redshifts[i], bands=bandlist,numImages=1,
-                    zp=zp, cadence=tempCadence, epochs=50.,skynoiseRange=(.0001,.0005),gain=100. , time_delays=[0.],
-                    magnifications=[mu], objectName='SWELLS Survey', telescopename='LCO',minsnr=None,snrFunc=snrFunc)#5.0)
+                    zp=zp, timeArr=time_array,scatter=False, time_delays=[0.],
+                    magnifications=[mu], objectName='temp', telescopename='temp',minsnr=None,snrFunc=snrFunc)#5.0)
                 snTable,snModel=tempSN
                 
-                t0=_snMax(snModel,band,zpsys)
+                #t0=_snMax(snModel,band,zpsys)
                 mags=-2.5*np.log10(snTable['flux'])+zp
                 
                 if len(mags[mags<=magLimits[i]])==0:
                     tempFrac.append(0)
                 else:
                     if len(mags[mags<=magLimits[i]])<tempCadence:
-                        tempFrac.append(float(len(mags[mags<=magLimits[i]])/tempCadence))
+                        tempFrac.append(float(len(mags[mags<=magLimits[i]]))/float(tempCadence))
                     else:
                         tempFrac.append(1)
             
