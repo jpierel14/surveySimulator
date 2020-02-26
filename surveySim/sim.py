@@ -89,6 +89,8 @@ class survey(dict):
                 self.galaxies.rename_column('redshift','z')
             if 'zs' in self.galaxies.colnames:
                 self.galaxies.rename_column('zs', 'z')
+            if 'zsrc' in self.galaxies.colnames:
+                self.galaxies.rename_column('zsrc', 'z')
             if 'z' not in self.galaxies.colnames:
                 print('Could not find redshift in your column names, rename to "z" if it exists')
                 import pdb; pdb.set_trace()
