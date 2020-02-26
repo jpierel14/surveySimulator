@@ -217,26 +217,24 @@ class survey(dict):
         return('')
 
     def calc_total_yield(self):
-        band_total={}
-        for band in self.yields.keys():
-            snYield=self.yields[band]
-            allSne_lower=[]
-            allSne_upper=[]
-            
-            for key in snYield.keys():
-                allSne_lower.append(np.sum(snYield[key]['lower']))
-                allSne_upper.append(np.sum(snYield[key]['upper']))
-            Expectation=np.round((np.sum(allSne_lower) + np.sum(allSne_upper))/2.,2)
-            band_total[band]=Expectation
+        
+        snYield=self.yields
+        allSne_lower=[]
+        allSne_upper=[]
+        
+        for key in snYield.keys():
+            allSne_lower.append(np.sum(snYield[key]['lower']))
+            allSne_upper.append(np.sum(snYield[key]['upper']))
+        Expectation=np.round((np.sum(allSne_lower) + np.sum(allSne_upper))/2.,2)
+        band_total=Expectation
         return(band_total)
 
     def calc_poiss(self,mean=None):
         if mean is None:
             mean=self.calc_total_yield()
-        poiss_res={}
-        for band in mean.keys():
-            dist=PoissonDistribution(mean=mean[band],max_boundary=40)
-            poiss_res[band]=1-dist.cumulative_probability(0)
+
+        dist=PoissonDistribution(mean=mean,max_boundary=40)
+        poiss_res=1-dist.cumulative_probability(0)
         return(poiss_res)
 
     def unTargetedSurvey(self,Ia_av=.3,CC_av=.9,zpsys='ab',lc_sampling=10,snrFunc=None,before_peak=False): #t_obs in years
@@ -255,15 +253,14 @@ class survey(dict):
         redshifts,N_CC_upper,N_CC_lower,N_Ia_upper,N_Ia_lower=_getSNexploding(self.surveyLength,self.area,self.dz,self.zmin,self.zmax)
         #filterDict=dict([])
         absolutes=getAbsoluteDist()
-        for i in range(len(self.filters)):
-            _SNfractions=_SNfraction(self.snTypes,self.filters[i],self.magLimits[i],redshifts,self.cadence,absolutes,lc_sampling,self.mu,Ia_av,CC_av,self.zp,zpsys,snrFunc,before_peak)
-            snYields=dict([])
-            for snClass in _SNfractions.keys():
-                if snClass=='Ia':
-                    snYields[snClass]={'upper':_SNfractions[snClass]*N_Ia_upper,'lower':_SNfractions[snClass]*N_Ia_lower}
-                else:
-                    snYields[snClass]={'upper':_SNfractions[snClass]*N_CC_upper,'lower':_SNfractions[snClass]*N_CC_lower}
-            self.yields[self.filters[i]]=snYields
+        _SNfractions=_SNfraction(self.snTypes,self.filters,self.magLimits,redshifts,self.cadence,absolutes,lc_sampling,self.mu,Ia_av,CC_av,self.zp,zpsys,snrFunc,before_peak)
+        snYields=dict([])
+        for snClass in _SNfractions.keys():
+            if snClass=='Ia':
+                snYields[snClass]={'upper':_SNfractions[snClass]*N_Ia_upper,'lower':_SNfractions[snClass]*N_Ia_lower}
+            else:
+                snYields[snClass]={'upper':_SNfractions[snClass]*N_CC_upper,'lower':_SNfractions[snClass]*N_CC_lower}
+        self.yields=snYields
         self.total_yield=self.calc_total_yield()
 
     def targetedSurvey(self,Ia_av=.3,CC_av=.9,zpsys='ab',lc_sampling=10,snrFunc=True,before_peak=False):
@@ -315,37 +312,36 @@ class survey(dict):
 
 
         absolutes=getAbsoluteDist()
-        for i in range(len(self.filters)):
-            _SNfractions=_SNfraction(self.snTypes,self.filters[i],self.magLimits[i],self.galaxies['z'],self.cadence,absolutes,lc_sampling,self.mu,Ia_av,CC_av,self.zp,zpsys,snrFunc,before_peak)
-            snYields=dict([])
-            totalNum=[]
-            for snClass in _SNfractions.keys():
-                if snClass=='Ia':
-                    snYields[snClass]={
-                        'upper':_SNfractions[snClass] * \
-                                self.galaxies['SNR_Ia_upper'] * \
-                                self.surveyLength,
-                        'lower':_SNfractions[snClass] * \
-                                self.galaxies['SNR_Ia_lower'] * \
-                                self.surveyLength
-                    }
-                else:
+        _SNfractions=_SNfraction(self.snTypes,self.filters,self.magLimits,self.galaxies['z'],self.cadence,absolutes,lc_sampling,self.mu,Ia_av,CC_av,self.zp,zpsys,snrFunc,before_peak)
+        snYields=dict([])
+        totalNum=[]
+        for snClass in _SNfractions.keys():
+            if snClass=='Ia':
+                snYields[snClass]={
+                    'upper':_SNfractions[snClass] * \
+                            self.galaxies['SNR_Ia_upper'] * \
+                            self.surveyLength,
+                    'lower':_SNfractions[snClass] * \
+                            self.galaxies['SNR_Ia_lower'] * \
+                            self.surveyLength
+                }
+            else:
 
-                    snYields[snClass]={
-						'upper':_SNfractions[snClass] * \
-								self.galaxies['SNR_CC_upper']*absolutes[snClass]['frac'] * \
-								self.surveyLength,
-						'lower':_SNfractions[snClass] * \
-								self.galaxies['SNR_CC_lower']*absolutes[snClass]['frac'] * \
-								self.surveyLength
-					}
-                    totalNum.append((snYields[snClass]['upper']+snYields[snClass]['lower'])/2)
-            #print(np.sum(totalNum)/(np.sum(self.galaxies['n_cc']*self.galaxies['tobs'])))
-            iaYield=np.sum(np.array((snYields['Ia']['upper']+snYields['Ia']['lower']))/2)
-            #print(iaYield)
-            #print(iaYield/np.sum(self.galaxies['n_ia']*self.galaxies['tobs']))
-            self.yields[self.filters[i]]=snYields
-            self.total_yield=self.calc_total_yield()
+                snYields[snClass]={
+					'upper':_SNfractions[snClass] * \
+							self.galaxies['SNR_CC_upper']*absolutes[snClass]['frac'] * \
+							self.surveyLength,
+					'lower':_SNfractions[snClass] * \
+							self.galaxies['SNR_CC_lower']*absolutes[snClass]['frac'] * \
+							self.surveyLength
+				}
+                totalNum.append((snYields[snClass]['upper']+snYields[snClass]['lower'])/2)
+        #print(np.sum(totalNum)/(np.sum(self.galaxies['n_cc']*self.galaxies['tobs'])))
+        iaYield=np.sum(np.array((snYields['Ia']['upper']+snYields['Ia']['lower']))/2)
+        #print(iaYield)
+        #print(iaYield/np.sum(self.galaxies['n_ia']*self.galaxies['tobs']))
+        self.yields=snYields
+        self.total_yield=self.calc_total_yield()
 
     def plotHist(self,band,snClass,bound='Lower',
                  facecolor='green',showPlot=True,savePlot=False,
@@ -556,7 +552,7 @@ def _getSNRfunc(path):
     mag,snr=np.loadtxt(path,unpack=True)
     return(interp1d(mag,snr))
 
-def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,samplingRate,mu,Ia_av,CC_av,zp,zpsys,snrFunc,before_peak):
+def _SNfraction(classes,bandlist,magLimits,redshifts,cadence,absolutes,samplingRate,mu,Ia_av,CC_av,zp,zpsys,snrFunc,before_peak):
     """
     (Private)
     Heler function for N_frac
@@ -572,7 +568,7 @@ def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,samplingRate,m
 
         absoluteList=np.random.normal(absolutes[snClass]['dist'][0],absolutes[snClass]['dist'][1],size=samplingRate)
                
-        magLimits=[magLimit for i in range(len(redshifts))]
+        magLimitsi=[magLimits for i in range(len(redshifts))]
         fractions=[]
         for i in range(len(redshifts)):
             m.set(z=redshifts[i])
@@ -589,7 +585,6 @@ def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,samplingRate,m
                 snType = snClass
                 
 
-                bandlist = [band]
                 tempSN = createSN(
                     modname, snType, redshifts[i], bands=bandlist,numImages=1,
                     zp=zp, timeArr=time_array,scatter=False, time_delays=[0.],
@@ -599,14 +594,19 @@ def _SNfraction(classes,band,magLimit,redshifts,cadence,absolutes,samplingRate,m
                 #t0=_snMax(snModel,band,zpsys)
                 mags=-2.5*np.log10(snTable['flux'])+zp
                 
-                if len(mags[mags<=magLimits[i]])==0:
-                    tempFrac.append(0)
+                nDetectedDays=0
+                tempTotal=float(len(mags))
+                for j in range(len(snTable)):
+                    
+                    if np.any(mags[j]<=magLimitsi[i]):
+                        nDetectedDays+=1
+                                
+                    
+                        
+                if nDetectedDays>float(tempCadence):
+                    tempFrac.append(1)
                 else:
-                    if len(mags[mags<=magLimits[i]])<tempCadence:
-                        tempFrac.append(float(len(mags[mags<=magLimits[i]]))/float(tempCadence))
-                    else:
-                        tempFrac.append(1)
-            
+                    tempFrac.append(nDetectedDays/float(tempCadence))
             fractions.append(np.mean(tempFrac))
         resultsDict[snClass]=np.array(fractions)
     return(resultsDict)
