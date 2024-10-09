@@ -12,10 +12,10 @@ __dir__=os.path.abspath(os.path.dirname(__file__))
 __all__=['createRandMultiplyImagedSN']
 def _getAbsoluteDist():
     absolutes=ascii.read(os.path.join(__dir__,'data','absolutes.ref'))
-    total=float(np.sum(absolutes['N'][absolutes['type']!='Ia']))
+    total=float(np.sum([row['N'] for row in absolutes if row['type'] not in ['Ia','PISN','SLSN']]))
     absDict=dict([])
     for row in absolutes:
-        if row['type']=='Ia':
+        if row['type'] in ['Ia','PISN','SLSN']:
             frac=1
         else:
             frac=float(row['N'])/total
@@ -170,11 +170,11 @@ def createSN(
         model.set(lensz=z_lens, lensebv=ebv_lens, lensr_v=RV_lens)
     else:
         ebv_lens = 0
-
     # Step through each of the multiple SN images, adding time delays,
     # macro magnifications, and microlensing effects.
     tables=[]
     for imnum, td, mu in zip(range(numImages), time_delays, magnifications):
+        
         # Make a separate model_i for each SN image, so that lensing effects
         # can be reflected in the model_i parameters and propagate correctly
         # into realize_lcs for flux uncertainties
@@ -219,10 +219,17 @@ def createSN(
         model_i.set(**params_i)
 
         #print(np.nanmin(model_i.bandmag('F125W',zpsys,np.arange(model_i.mintime(),model_i.maxtime(),1))))
+        for b in np.unique(obstable['band']):
+            band = sncosmo.get_bandpass(b)
+            #if np.max(band.wave)/(1+params_i['z'])>20000 or\
+            #   np.min(band.wave)/(1+params_i['z'])<2500:
+            if not model_i.bandoverlap(band):
+                obstable = obstable[obstable['band']!=b]
 
         table_i = sncosmo.realize_lcs(
             obstable , model_i, [params_i],
             trim_observations=True, scatter=scatter,thresh=minsnr)#,snrFunc=snrFunc)
+
         tried=0
         while (len(table_i)==0 or len(table_i[0])<numImages) and tried<50:
             table_i = sncosmo.realize_lcs(
@@ -230,8 +237,9 @@ def createSN(
                 trim_observations=True, scatter=scatter,thresh=minsnr)
             tried+=1
         if tried==50:
-            print("Your survey parameters detected no supernovae.")
-            sys.exit()
+            #print("Your survey parameters detected no supernovae.")
+            #sys.exit()
+            return None
         table_i=table_i[0]
         if numImages>1:
             tables.append((table_i,model_i))

@@ -8,6 +8,7 @@ from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 from astropy import units as u
 from astropy.cosmology import WMAP9 as cosmo
+import glob
 
 from .simulation import createSN
 from .math_extensions import PoissonDistribution
@@ -80,7 +81,7 @@ class survey(dict):
             self.area=self.area.to(u.sr) #change to steradians
             if not self.mu:
                 print('No Magnification information found, assuming mu=1')
-                self.mu=1
+                self.mu=1.
         else:
             for col in self.galaxies.colnames:
                 if col != col.lower():
@@ -258,6 +259,8 @@ class survey(dict):
         for snClass in _SNfractions.keys():
             if snClass=='Ia':
                 snYields[snClass]={'upper':_SNfractions[snClass]*N_Ia_upper,'lower':_SNfractions[snClass]*N_Ia_lower}
+            elif snClass in ['PISN','SLSN']:
+                snYields[snClass]={'upper':_SNfractions[snClass]*N_CC_upper*.02,'lower':_SNfractions[snClass]*N_CC_lower*.02}
             else:
                 snYields[snClass]={'upper':_SNfractions[snClass]*N_CC_upper,'lower':_SNfractions[snClass]*N_CC_lower}
         self.yields=snYields
@@ -325,8 +328,16 @@ class survey(dict):
                             self.galaxies['SNR_Ia_lower'] * \
                             self.surveyLength
                 }
+            elif snClass in ['PISN','SLSN']:
+                snYields[snClass]={
+                    'upper':_SNfractions[snClass] * \
+                            self.galaxies['SNR_CC_upper']*absolutes[snClass]['frac'] * 0.02 * \
+                            self.surveyLength,
+                    'lower':_SNfractions[snClass] * \
+                            self.galaxies['SNR_CC_lower']*absolutes[snClass]['frac'] * 0.02 * \
+                            self.surveyLength
+                }
             else:
-
                 snYields[snClass]={
 					'upper':_SNfractions[snClass] * \
 							self.galaxies['SNR_CC_upper']*absolutes[snClass]['frac'] * \
@@ -521,6 +532,7 @@ def _getSNexploding(t_obs,area,dz,zmin,zmax):
         N_CC_lower.append(cc_lower*surveyV*(t_obs/(1+z)))
         N_Ia_upper.append(ia_upper*surveyV*(t_obs/(1+z)))
         N_Ia_lower.append(ia_lower*surveyV*(t_obs/(1+z)))
+
     return(redshifts,np.array(N_CC_upper),np.array(N_CC_lower),np.array(N_Ia_upper),np.array(N_Ia_lower))
 
 
@@ -541,7 +553,7 @@ def getAbsoluteDist():
     total=float(np.sum(absolutes['N'][absolutes['type']!='Ia']))
     absDict=dict([])
     for row in absolutes:
-        if row['type']=='Ia':
+        if row['type'] in ['Ia','PISN','SLSN']:
             frac=1
         else:
             frac=float(row['N'])/total
@@ -560,7 +572,32 @@ def _SNfraction(classes,bandlist,magLimits,redshifts,cadence,absolutes,samplingR
     """
     types,mods=np.loadtxt(os.path.join(__dir__,'data','seds.ref'),dtype='str',unpack=True)
 
+    pisn = glob.glob(os.path.join(os.path.dirname(__file__),'data/SIMSED.PISN-STELLA-HECORE/he100z0ahfr200_SED.dat.gz'))
+    slsn = glob.glob(os.path.join(os.path.dirname(__file__),'data/NON1ASED.SLSN-I-MOSFIT/slsn134.dat.gz'))
+
+    sources = []
+    sources2 = []
+    for mod in pisn:
+        tab = Table.read(mod,format='ascii')
+        tab['col1'] = tab['col1']-tab['col1'][np.argmax(tab['col3'])]
+        np.savetxt('temp.txt',np.array(tab))
+        phase,wave,flux = sncosmo.read_griddata_ascii('temp.txt')
+        
+        sources.append(sncosmo.TimeSeriesSource(phase,wave,flux))
+        
+    for mod in slsn:
+        tab = Table.read(mod,format='ascii')
+        tab['col1'] = tab['col1']-tab['col1'][np.argmax(tab['col3'])]
+        np.savetxt('temp.txt',np.array(tab))
+        phase,wave,flux = sncosmo.read_griddata_ascii('temp.txt')
+        
+        sources2.append(sncosmo.TimeSeriesSource(phase,wave,flux))
+
+
     sne={types[i]:mods[i] for i in range(len(types))}
+    sne['PISN'] = sources[0]
+    sne['SLSN'] = sources2[0]
+
     resultsDict=dict([])    
 
     for snClass in classes:
@@ -588,7 +625,10 @@ def _SNfraction(classes,bandlist,magLimits,redshifts,cadence,absolutes,samplingR
                 tempSN = createSN(
                     modname, snType, redshifts[i], bands=bandlist,numImages=1,
                     zp=zp, timeArr=time_array,scatter=False, time_delays=[0.],
-                    magnifications=[mu], objectName='temp', telescopename='temp',minsnr=None,snrFunc=snrFunc)#5.0)
+                    magnifications=[mu] if isinstance(mu,float) else np.array(mu), objectName='temp', telescopename='temp',minsnr=None,snrFunc=snrFunc)#5.0)
+                if tempSN is None:
+                    tempFrac.append(0)
+                    continue
                 snTable,snModel=tempSN
                 
                 #t0=_snMax(snModel,band,zpsys)
